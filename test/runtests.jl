@@ -1,5 +1,5 @@
-using GeDetComptonScatteringAnalysis
-using Base.Test
+# This file is a part of GeDetComptonScatteringAnalysis.jl, licensed under the MIT License (MIT).
 
-# write your own tests here
-@test 1 == 2
+import Compat.Test
+Test.@testset "Package GeDetComptonScatteringAnalysis" begin
+end

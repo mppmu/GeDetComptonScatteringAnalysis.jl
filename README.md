@@ -1,1 +1,1 @@
-# GeDetComptonScatteringAnalysis
+# GeDetComptonScatteringAnalysis.jl
