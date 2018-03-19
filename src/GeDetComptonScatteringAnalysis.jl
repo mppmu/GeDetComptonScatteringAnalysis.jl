@@ -8,6 +8,15 @@ using Compat
 using Compat.Markdown
 using Compat: axes
 
-# package code goes here
+using Compat
+using DataFrames
+using H3DPolaris
+using IntervalSets
+using LsqFit
+using RecipesBase
+
+include("multifind.jl")
+include("functions.jl")
+include("plot_recipes.jl")
 
 end # module

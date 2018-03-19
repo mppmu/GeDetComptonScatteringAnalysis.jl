@@ -1,2 +1,7 @@
 julia 0.6
 Compat
+DataFrames
+H3DPolaris
+IntervalSets
+LsqFit
+RecipesBase
