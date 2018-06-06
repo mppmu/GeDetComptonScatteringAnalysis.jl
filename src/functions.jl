@@ -2,8 +2,9 @@
 
 
 function triangular_dither(x::Real, width::Real = one(typeof(x)))
-    r = rand()
-    tr = (r >= 0.5) ? - sqrt(2 - 2*r) + 1 : sqrt(2*r) - 1
+    T = float(typeof(x))
+    r = rand(T)
+    tr = (r >= T(0.5)) ? - sqrt(2 - 2*r) + 1 : sqrt(2*r) - 1
     x + tr * width
 end
 
