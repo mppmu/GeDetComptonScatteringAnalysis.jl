@@ -14,17 +14,20 @@ edep_in_keV(raw_edep::Real) = raw_edep * 1E-3
 
 
 function polaris_events2df(events::PolarisEvents)
+    T = Float32
+    inv_1000 = 1 / T(1000)
+
     DataFrames.DataFrame(
         evt_no = events.evt_no,
         evt_nhits = events.evt_nhits,
         evt_t = events.evt_t * 1E-9,
         evt_issync = events.evt_issync,
         hit_detno = events.hit_detno,
-        hit_x = (x -> triangular_dither.(x)).(events.hit_x) * (1E-6 / 1E-3),  #!!! use pos_in_mm
-        hit_y = (x -> triangular_dither.(x)).(events.hit_y) * (1E-6 / 1E-3),  #!!! use pos_in_mm
-        hit_z = (x -> triangular_dither.(x)).(events.hit_z) * (1E-6 / 1E-3),  #!!! use pos_in_mm
-        hit_edep = (x -> triangular_dither.(x)).(events.hit_edep) * (1 / 1E3),  #!!! use edep_in_keV
-        hit_t = events.hit_t * 1E-9,
+        hit_x = deepmap(x -> triangular_dither(T(x)) * inv_1000, events.hit_x),
+        hit_y = deepmap(x -> triangular_dither(T(x)) * inv_1000, events.hit_y),
+        hit_z = deepmap(x -> triangular_dither(T(x)) * inv_1000, events.hit_z),
+        hit_edep = deepmap(x -> triangular_dither(T(x)) * inv_1000, events.hit_edep),
+        hit_t = deepmap(x -> x * 1E-9, events.hit_t),
     )
 end
 

@@ -8,7 +8,7 @@ using Compat
 using Compat.Markdown
 using Compat: axes
 
-using Compat
+using ArraysOfArrays
 using DataFrames
 using H3DPolaris
 using IntervalSets
