@@ -2,7 +2,7 @@
 
 
 function multifind(predicate::Function, ds::DataFrame, colname::Symbol...)
-    columns = map(c -> ds[c], colname)
+    cols = map(c -> ds[c], colname)
     f(xs) = predicate(xs...)
-    find(f, zip(columns...))
+    findall(f, collect(zip(cols...))) # TODO: Get rid of collect here
 end

@@ -36,17 +36,17 @@ export polaris_events2df
 
 
 function correct_timestamps!(dfs::DataFrame...)
-    t_sync = map(df -> df[find(identity, df[:evt_issync]), :evt_t], dfs)
+    t_sync = map(df -> df[findall(identity, df[:evt_issync]), :evt_t], dfs)
     n_sync_events = min(map(length, t_sync)...)
     resize!.(t_sync, n_sync_events)
 
-    all(x -> length(t_sync) - n_sync_events <= 2, t_sync) || error("Number of sync events doesn't match")
+    all(x -> length(t_sync) - n_sync_events <= 2, t_sync) || @error "Number of sync events doesn't match"
 
     t_offs = dfs[1][1, :evt_t]
 
     for i in 2:length(dfs)
         # Determine timestamp mapping relative to reference dataframe:
-        t_sync_fit = curve_fit((x, p) -> p[1] + p[2] * x, t_sync[i], t_sync[1], [1.0, 1.0])
+        t_sync_fit = curve_fit((x, p) -> p[1] .+ p[2] * x, t_sync[i], t_sync[1], [1.0, 1.0])
         sync_p1, sync_p2 = t_sync_fit.param[1], t_sync_fit.param[2]
 
         # Correct timestamps:
