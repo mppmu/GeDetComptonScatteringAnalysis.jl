@@ -14,6 +14,7 @@ using IntervalSets
 using LsqFit
 using Plots # !!! Temporary
 using RecipesBase
+using Unitful
 
 include("multifind.jl")
 include("functions.jl")
