@@ -9,7 +9,7 @@ using Statistics
 
 using ArraysOfArrays
 using DataFrames
-using H3DPolaris
+using H3DDetectorSystems
 using IntervalSets
 using LsqFit
 using Plots # !!! Temporary
