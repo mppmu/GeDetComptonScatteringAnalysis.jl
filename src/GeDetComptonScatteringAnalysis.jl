@@ -8,12 +8,13 @@ using LinearAlgebra
 using Statistics
 
 using ArraysOfArrays
-using DataFrames
 using H3DDetectorSystems
 using IntervalSets
 using LsqFit
 using Plots # !!! Temporary
 using RecipesBase
+using Tables
+using TypedTables
 using Unitful
 
 include("multifind.jl")

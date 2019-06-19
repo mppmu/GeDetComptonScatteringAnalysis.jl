@@ -1,8 +1,8 @@
 # This file is a part of GeDetComptonScatteringAnalysis.jl, licensed under the MIT License (MIT).
 
 
-function triangular_dither(x::Real, width::Real = one(typeof(x)))
-    T = float(typeof(x))
+function triangular_dither(x::Number, width::Number = one(typeof(x)) * unit(x))
+    T = float(typeof(ustrip(x)))
     r = rand(T)
     tr = (r >= T(0.5)) ? - sqrt(2 - 2*r) + 1 : sqrt(2*r) - 1
     x + tr * width
@@ -14,53 +14,54 @@ pos_in_mm(raw_x::Real) = raw_x * 1E-6 * 1E-3
 edep_in_keV(raw_edep::Real) = raw_edep * 1E-3
 
 
-function polaris_events2df(events::PolarisEvents)
-    T = Float32
-    inv_1000 = 1 / T(1000)
+function polaris_dither(data)
+    T_time = typeof(Float64(1)u"μs")
+    T_pos = typeof(Float32(1)u"mm")
+    T_energy = typeof(Float64(1)u"keV")
 
-    DataFrames.DataFrame(
-        evt_no = events.evt_no,
-        evt_nhits = events.evt_nhits,
-        evt_t = events.evt_t * 1E-9,
-        evt_issync = events.evt_issync,
-        hit_detno = events.hit_detno,
-        hit_x = deepmap(x -> triangular_dither(T(x)) * inv_1000, events.hit_x),
-        hit_y = deepmap(x -> triangular_dither(T(x)) * inv_1000, events.hit_y),
-        hit_z = deepmap(x -> triangular_dither(T(x)) * inv_1000, events.hit_z),
-        hit_edep = deepmap(x -> triangular_dither(T(x)) * inv_1000, events.hit_edep),
-        hit_t = deepmap(x -> x * 1E-9, events.hit_t),
-    )
+    cols = Tables.columns(data)
+
+    Tables.materializer(data)(merge(cols, (
+        evt_t = convert.(T_time, data.evt_t),
+        hit_x = deepmap(x -> convert(T_pos, triangular_dither(x)), data.hit_x),
+        hit_y = deepmap(x -> convert(T_pos, triangular_dither(x)), data.hit_y),
+        hit_z = deepmap(x -> convert(T_pos, triangular_dither(x)), data.hit_z),
+        hit_edep = deepmap(x -> convert(T_energy, triangular_dither(x)), data.hit_edep),
+    )))
 end
 
-export polaris_events2df
+export polaris_dither
 
 
-function correct_timestamps!(dfs::DataFrame...)
-    t_sync = map(df -> df[findall(identity, df[:evt_issync]), :evt_t], dfs)
+function correct_timestamps!(tables...)
+    time_unit = unit(eltype(tables[1].evt_t))
+    t_sync = map(tbl -> ustrip.(uconvert.(time_unit, tbl.evt_t[findall(tbl.evt_issync)])), tables)
     n_sync_events = min(map(length, t_sync)...)
     resize!.(t_sync, n_sync_events)
 
     all(x -> length(t_sync) - n_sync_events <= 2, t_sync) || @error "Number of sync events doesn't match"
 
-    t_offs = dfs[1][1, :evt_t]
+    t_offs = tables[1].evt_t[1]
 
-    for i in 2:length(dfs)
-        # Determine timestamp mapping relative to reference dataframe:
+    for i in 2:length(tables)
+        # Determine timestamp mapping relative to reference table:
         t_sync_fit = curve_fit((x, p) -> p[1] .+ p[2] * x, t_sync[i], t_sync[1], [1.0, 1.0])
         sync_p1, sync_p2 = t_sync_fit.param[1], t_sync_fit.param[2]
 
         # Correct timestamps:
-        dfs[i][:evt_t] .= sync_p1 .+ sync_p2 .* dfs[i][:evt_t] .- t_offs
+        tables[i].evt_t .= sync_p1 * time_unit .+ sync_p2 .* tables[i].evt_t .- t_offs
     end
-    dfs[1][:evt_t] .= dfs[1][:evt_t] .- t_offs
-    dfs
+
+    tables[1].evt_t .= tables[1].evt_t .- t_offs
+
+    tables
 end
 
 export correct_timestamps!
 
 
-function find_common_events(df::Tuple{DataFrame,DataFrame}, delta_t::Real)
-    t = (df[1][:evt_t], df[2][:evt_t])
+function find_common_events(tables::Tuple{Any,Any}, delta_t::Number)
+    t = (tables[1].evt_t, tables[2].evt_t)
     sel = Vector{Int}(), Vector{Int}()
 
     idxs = (eachindex(t[1]), eachindex(t[2]))
