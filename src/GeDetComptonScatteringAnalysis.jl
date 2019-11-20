@@ -20,5 +20,7 @@ using Unitful
 include("multifind.jl")
 include("functions.jl")
 include("plot_recipes.jl")
+include("cone.jl")
+include("compton_scanner_analysis.jl")
 
 end # module
