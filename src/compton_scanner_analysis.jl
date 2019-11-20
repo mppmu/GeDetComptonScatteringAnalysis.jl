@@ -1,10 +1,12 @@
-function get_z_from_2_hit_events(s::Table, c::Table, R::Number; Δz = 2)
+in_mm(x::Number) = ustrip(uconvert(u"mm", x))
+
+function get_z_from_2_hit_events(s::NamedTuple, c::NamedTuple, R::Number; Δz = 2)
 
     #get z coordinates for scatter point in segBEGe
     zθ = get_z_from_energies(s,c,R)
     zα = get_z_from_camera(s,c,R)
 
-    #compare them: if they agree within 2mm, keep them
+    #compare them: if they agree within Δz, keep them
     for z in zα
         if abs(z - zθ) < Δz
             return (true, zθ, z)
@@ -18,13 +20,12 @@ end
 export get_z_from_2_hit_events
 
 
-function get_z_from_energies(s::Table, c::Table, R::Number)
+function get_z_from_energies(s::NamedTuple, c::NamedTuple, R::Number; campos::AbstractVector = campos)
     try
         x_global, y_global, z_global = get_global_cam_positions(c, campos)
         θ = compton_angle(s.energy+sum(c.hit_edep), sum(c.hit_edep))
-        return in_mm(z_global.cam[1] + sqrt.(x_global.cam[1] ^ 2 + (y_global.cam[1] - R*u"mm") ^ 2) * cot(θ))
+        return in_mm(z_global.cam[1] + sqrt(x_global.cam[1] ^ 2 + (y_global.cam[1] - R*u"mm") ^ 2) * cot(θ))
     catch e
-        @warn "campos is not defined. Try `const global campos [x,y,z]u\"mm\"`"
         error(e)
     end
 end
@@ -32,7 +33,7 @@ end
 export get_z_from_energies
 
 
-function get_z_from_camera(s::Table, c::Table, R::Number; plot=true)
+function get_z_from_camera(s::NamedTuple, c::NamedTuple, R::Number; campos::AbstractVector = campos)
 
     try
         x_global, y_global, z_global = get_global_cam_positions(c, campos)
@@ -64,7 +65,6 @@ function get_z_from_camera(s::Table, c::Table, R::Number; plot=true)
         return zα
 
     catch e
-        println("campos might not be defined. Try `const global campos [x,y,z]u\"mm\"`")
         error(e)
     end
 end
@@ -105,16 +105,15 @@ function validate_z(z::AbstractFloat, cone::Cone, R::AbstractFloat; Δα::Number
 end
 
 
-function get_global_cam_positions(c::Table, campos::AbstractVector)
+function get_global_cam_positions(c::NamedTuple, campos::AbstractVector)
     #transform local CZT coordinates to global coordinate system
-    #for this, campos should be defined
     x_global = (cam = (c.hit_x) .+ campos[1],)
     y_global = (cam = -1*(c.hit_z) .+ campos[2],)
     z_global = (cam = -1*(c.hit_y) .+ campos[3],)
     return x_global, y_global, z_global
 end
 
-function swap_CZT_hits(c::Table)
+function swap_CZT_hits(c::NamedTuple)
     return (hit_x = [c.hit_x[2], c.hit_x[1]], hit_y = [c.hit_y[2], c.hit_y[1]], hit_z = [c.hit_z[2], c.hit_z[1]], hit_edep = [c.hit_edep[2], c.hit_edep[1]])
 end
 
