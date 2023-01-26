@@ -8,7 +8,6 @@ using LinearAlgebra
 using Statistics
 
 using ArraysOfArrays
-using H3DDetectorSystems
 using IntervalSets
 using LsqFit
 using Plots # !!! Temporary
@@ -16,11 +15,17 @@ using RecipesBase
 using Tables
 using TypedTables
 using Unitful
+using LegendHDF5IO
+using Rotations
+using StaticArrays
+using ArraysOfArrays: no_consistency_checks
+
 
 include("multifind.jl")
 include("functions.jl")
 include("plot_recipes.jl")
 include("cone.jl")
 include("compton_scanner_analysis.jl")
+include("new_funcs.jl")
 
 end # module

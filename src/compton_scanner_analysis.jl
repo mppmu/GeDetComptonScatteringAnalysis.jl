@@ -1,15 +1,28 @@
 in_mm(x::Number) = ustrip(uconvert(u"mm", x))
 
-function get_z_from_2_hit_events(s::NamedTuple, c::NamedTuple, R::Number; Δz = 2)
+function get_z_from_2_hit_events(s::NamedTuple, c::NamedTuple, R::Number; Δz = 2, hv)
 
+    #if econv*s.DAQ_energy < 250
+        #return (false, -1)
+    #end
     #get z coordinates for scatter point in segBEGe
-    zθ = get_z_from_energies(s,c,R)
-    zα = get_z_from_camera(s,c,R)
+    zθ = get_z_from_energies(s, c, R, hv)
+    zα = get_z_from_camera(c, R)
 
     #compare them: if they agree within Δz, keep them
-    for z in zα
+    for z in zα 
+        if abs(z - zθ) < Δz 
+            return (1, zθ, z)
+        end
+    end
+    
+    #swaphits and try again
+    cs = swap_CZT_hits(c)
+    zθ = get_z_from_energies(s, cs, R, hv)
+    zα = get_z_from_camera(cs, R)
+    for z in zα 
         if abs(z - zθ) < Δz
-            return (true, zθ, z)
+            return (2, zθ, z)
         end
     end
 
@@ -20,53 +33,48 @@ end
 export get_z_from_2_hit_events
 
 
-function get_z_from_energies(s::NamedTuple, c::NamedTuple, R::Number; campos::AbstractVector = campos)
-    try
-        x_global, y_global, z_global = get_global_cam_positions(c, campos)
-        θ = compton_angle(s.energy+sum(c.hit_edep), sum(c.hit_edep))
-        return in_mm(z_global.cam[1] + sqrt(x_global.cam[1] ^ 2 + (y_global.cam[1] - R*u"mm") ^ 2) * cot(θ))
-    catch e
-        error(e)
-    end
+function get_z_from_energies(s::NamedTuple, c::NamedTuple, R,hv)
+    cf = econv[hv]
+    T = typeof(1.0*unit(eltype(c.hit_x)))
+    # TODO: add flag if we want to rely more on camera or DAQ_energies?
+    # if ge not depleted -> worse energy resolution -> rely more on camera 
+    # energy resolution
+    # DAQ_energies
+    # θ = compton_angle(cf*s.DAQ_energy*u"keV"+sum(c.hit_edep), sum(c.hit_edep))
+    # CZT energies
+    θ = compton_angle(661.66*u"keV", sum(c.hit_edep)) 
+    in_mm(T(c.hit_z[1]) + hypot(T(c.hit_x[1]), T(c.hit_y[1]) - R*u"mm") * cot(θ))
 end
 
 export get_z_from_energies
 
 
-function get_z_from_camera(s::NamedTuple, c::NamedTuple, R::Number; campos::AbstractVector = campos)
+function get_z_from_camera(c::NamedTuple, R)
+    x_global, y_global, z_global = get_global_cam_positions(c)
+    α = compton_angle(sum(c.hit_edep), c.hit_edep[2])
+    zα = []
 
-    try
-        x_global, y_global, z_global = get_global_cam_positions(c, campos)
-        α = compton_angle(sum(c.hit_edep), c.hit_edep[2])
-        zα = []
+    if !(isnan(α))
+        try
+            #define the cone and get intersections z1,z2 with the beam axis
+            camhit1 = [x_global.cam[1], y_global.cam[1], z_global.cam[1]]
+            camhit2 = [x_global.cam[2], y_global.cam[2], z_global.cam[2]]
+            cone = Cone(in_mm.(camhit1), in_mm.(camhit1-camhit2), α)
+            z1, z2 = get_possible_z_from_camera(cone, R)
 
-        if !(isnan(α))
-
-            try
-                #define the cone and get intersections z1,z2 with the beam axis
-                camhit1 = [x_global.cam[1], y_global.cam[1], z_global.cam[1]]
-                camhit2 = [x_global.cam[2], y_global.cam[2], z_global.cam[2]]
-                cone = Cone(in_mm.(camhit1), in_mm.(camhit1-camhit2), α)
-                z1, z2 = get_possible_z_from_camera(cone, R)
-
-                #information about sign of cos(α) is lost when calculating zα
-                #so check whether the actual vectors return α (keep) or π-α (discard)
-                if validate_z(z1,cone,R)
-                    push!(zα,z1)
-                elseif validate_z(z2,cone,R)
-                    push!(zα,z2)
-                end
-
-            catch e
-                #this catches all imaginary solutions in get_possible_z_from_camera
-                if !(e isa DomainError) error(e) end
+            #information about sign of cos(α) is lost when calculating zα
+            #so check whether the actual vectors return α (keep) or π-α (discard)
+            if validate_z(z1,cone,R)
+                push!(zα,z1)
+            elseif validate_z(z2,cone,R)
+                push!(zα,z2)
             end
+        catch e
+            #this catches all imaginary solutions in get_possible_z_from_camera
+            if !(e isa DomainError) error(e) end
         end
-        return zα
-
-    catch e
-        error(e)
     end
+    return zα
 end
 
 
@@ -105,16 +113,21 @@ function validate_z(z::AbstractFloat, cone::Cone, R::AbstractFloat; Δα::Number
 end
 
 
-function get_global_cam_positions(c::NamedTuple, campos::AbstractVector)
+function get_global_cam_positions(c::NamedTuple)
     #transform local CZT coordinates to global coordinate system
-    x_global = (cam = (c.hit_x) .+ campos[1],)
-    y_global = (cam = -1*(c.hit_z) .+ campos[2],)
-    z_global = (cam = -1*(c.hit_y) .+ campos[3],)
+    x_global = (cam = c.hit_x,)
+    y_global = (cam = c.hit_y,)
+    z_global = (cam = c.hit_z,)
     return x_global, y_global, z_global
 end
 
 function swap_CZT_hits(c::NamedTuple)
-    return (hit_x = [c.hit_x[2], c.hit_x[1]], hit_y = [c.hit_y[2], c.hit_y[1]], hit_z = [c.hit_z[2], c.hit_z[1]], hit_edep = [c.hit_edep[2], c.hit_edep[1]])
+    return (
+        hit_x = [c.hit_x[2], c.hit_x[1]], 
+        hit_y = [c.hit_y[2], c.hit_y[1]], 
+        hit_z = [c.hit_z[2], c.hit_z[1]], 
+        hit_edep = [c.hit_edep[2], c.hit_edep[1]]
+        )
 end
 
 export swap_CZT_hits
