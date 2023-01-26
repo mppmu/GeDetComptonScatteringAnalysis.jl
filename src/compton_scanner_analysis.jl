@@ -131,3 +131,40 @@ function swap_CZT_hits(c::NamedTuple)
 end
 
 export swap_CZT_hits
+
+
+function getz(file; name="segBEGe", center=81.76361317572471, ew=8)
+    icpc, czt = LHDataStore(file) do lhd
+        lhd[name][:], lhd["czt"][:]
+    end
+    hv = getV(file)
+    ec = econv[hv]
+    icpc_e = ec*icpc.DAQ_energy
+    czt_e = ustrip(sum.(czt.hit_edep)) / 1000
+    idx = intersect(findall(x -> abs(x - 662) ≤ ew, icpc_e+czt_e), 
+                    findall(x -> 250 ≤ x ≤ 440, icpc_e))
+    icpc_hits = view(icpc, idx)
+    czt_hits = view(czt, idx)
+    R = center - getR(file)
+
+    @info "Reconstructing Z from two hit events at R = $R"
+    idx_2h = findall(is_valid_2hit, czt_hits);
+    czt_2hit = view(czt_hits, idx_2h);
+    icpc_2hit = view(icpc_hits, idx_2h);
+    # TODO: resolve allocation issues by passing fixed empty array
+    zrec2hit = get_z_from_2_hit_events.(icpc_2hit, czt_2hit, R; Δz = 2, hv);
+    idx_val_1 = findall(x -> x[1] == 1, zrec2hit);
+    idx_val_2 = findall(x -> x[1] == 2, zrec2hit);
+    idx_val = vcat(idx_val_1, idx_val_2);
+
+    # TODO: decide on what reconstructed z we really want 
+    # from core -> 2
+    # from czt  -> 3
+    vcat([[x[2] x[3]] for x in view(zrec2hit, idx_val)]...)
+end
+
+@inline function is_valid_2hit(evt)
+    length(evt.hit_x) == 2 && hypot(evt.hit_x[2] - evt.hit_x[1],
+        evt.hit_y[2] - evt.hit_y[1],
+        evt.hit_z[2] - evt.hit_z[1]) > 3.0u"mm"
+end
