@@ -27,6 +27,8 @@ include("cone.jl")
 include("compton_scanner_analysis.jl")
 include("pileup.jl")
 include("energies.jl")
+include("IO.jl")
+include("stack_and_merge.jl")
 include("new_funcs.jl")
 
 end # module
