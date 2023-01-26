@@ -112,15 +112,6 @@ function validate_z(z::AbstractFloat, cone::Cone, R::AbstractFloat; Δα::Number
 
 end
 
-
-function get_global_cam_positions(c::NamedTuple)
-    #transform local CZT coordinates to global coordinate system
-    x_global = (cam = c.hit_x,)
-    y_global = (cam = c.hit_y,)
-    z_global = (cam = c.hit_z,)
-    return x_global, y_global, z_global
-end
-
 function swap_CZT_hits(c::NamedTuple)
     return (
         hit_x = [c.hit_x[2], c.hit_x[1]], 

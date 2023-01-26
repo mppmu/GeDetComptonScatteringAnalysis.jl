@@ -29,6 +29,7 @@ include("pileup.jl")
 include("energies.jl")
 include("IO.jl")
 include("stack_and_merge.jl")
+include("transformations.jl")
 include("new_funcs.jl")
 
 end # module
