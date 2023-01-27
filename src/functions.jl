@@ -9,11 +9,6 @@ function triangular_dither(x::Number, width::Number = one(typeof(x)) * unit(x))
 end
 
 
-pos_in_mm(raw_x::Real) = raw_x * 1E-6 * 1E-3
-
-edep_in_keV(raw_edep::Real) = raw_edep * 1E-3
-
-
 function polaris_dither(data)
     T_time = typeof(Float64(1)u"μs")
     T_pos = typeof(Float32(1)u"mm")
