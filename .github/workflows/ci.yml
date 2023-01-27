@@ -22,33 +22,20 @@ jobs:
         version:
           - '1.7'
           - '1'
-          # - 'nightly'
         os:
           - ubuntu-latest
-          - macOS-latest
-          - windows-latest
+          # - macOS-latest
+          # - windows-latest
         arch:
           - x64
-          - x86
-        exclude:
-          # 32-bit Julia binaries are not available on macOS
-          - os: macOS-latest
-            arch: x86
-          - os: windows-latest
-            arch: x86
-          - version: nightly
-            arch: x86
-          - os: windows-latest
-            arch: x64
-            version: nightly
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: julia-actions/setup-julia@latest
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
       - name: Cache artifacts
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         env:
           cache-name: cache-artifacts
         with:
@@ -58,7 +45,8 @@ jobs:
             ${{ runner.os }}-test-${{ env.cache-name }}-
             ${{ runner.os }}-test-
             ${{ runner.os }}-
-      - run: julia -e 'using Pkg; Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/legend-exp/LegendJuliaRegistry")); Pkg.add(url = "https://github.com/legend-exp/LegendHDF5IO.jl", rev = "main")'
+      - name: Add LegendHDF5IO
+        run: julia -e 'using Pkg; Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/JuliaRegistries/General")); Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/legend-exp/LegendJuliaRegistry")); Pkg.add(url = "https://github.com/legend-exp/LegendHDF5IO.jl", rev = "main")'
         shell: bash
       - uses: julia-actions/julia-buildpkg@latest
       - uses: julia-actions/julia-runtest@latest

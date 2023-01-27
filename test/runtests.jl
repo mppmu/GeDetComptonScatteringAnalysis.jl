@@ -1,9 +1,16 @@
 # This file is a part of GeDetComptonScatteringAnalysis.jl, licensed under the MIT License (MIT).
+
+using Pkg
+Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/JuliaRegistries/General"))
+Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/legend-exp/LegendJuliaRegistry"))
+Pkg.add(url = "https://github.com/legend-exp/LegendHDF5IO.jl", rev = "main")
+
 using Test
 using GeDetComptonScatteringAnalysis
 
-datapath = "testdata"
-destdir = "results"
+datapath = joinpath(@__DIR__, "testdata")
+destdir = joinpath(@__DIR__, "results")
+!isdir(destdir) && mkdir(destdir)
 
 @testset "segBEGe" begin
     hv = 300.        # applied Voltage
@@ -16,7 +23,7 @@ destdir = "results"
         stack_and_merge_at_z(datapath, destdir, r, phi, z, hv, name)
         resultfile = joinpath(destdir, "R_81.8mm_Z_62.8mm_Phi_88.5deg_T_71.75K_measuretime_1200sec_HV_300V-20230126T145729Z-preprocessed.lh5")
         @test isfile(resultfile)
-        mtime, R, Z = get_all_z("results")
+        mtime, R, Z = get_all_z(destdir)
         rm(resultfile)
     end
 
@@ -27,7 +34,7 @@ destdir = "results"
         stack_and_merge_at_z(datapath, destdir, r, phi, z, hv, name)
         resultfile = joinpath(destdir, "R_79.8mm_Z_62.8mm_Phi_88.5deg_T_71.75K_measuretime_600sec_HV_300V-20230118T010831Z-preprocessed.lh5")
         @test isfile(resultfile)
-        mtime, R, Z = get_all_z("results")
+        mtime, R, Z = get_all_z(destdir)
         rm(resultfile)
     end
     =#
