@@ -1,9 +1,3 @@
-measuredd = 106.5
-measuredh = 1.3
-z_offset = -25.34
-global campos = [0.0,measuredd+z_offset,66.4+measuredh-47.5]u"mm"
-export campos
-
 mutable struct Cone
     origin::AbstractVector
     axis::AbstractVector
