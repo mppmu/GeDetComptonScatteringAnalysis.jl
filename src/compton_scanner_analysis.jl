@@ -30,8 +30,6 @@ function get_z_from_2_hit_events(s::NamedTuple, c::NamedTuple, R::Number; Δz = 
     return (false, zθ)
 end
 
-export get_z_from_2_hit_events
-
 
 function get_z_from_energies(s::NamedTuple, c::NamedTuple, R,hv)
     cf = econv[hv]
@@ -45,8 +43,6 @@ function get_z_from_energies(s::NamedTuple, c::NamedTuple, R,hv)
     θ = compton_angle(661.66*u"keV", sum(c.hit_edep)) 
     in_mm(T(c.hit_z[1]) + hypot(T(c.hit_x[1]), T(c.hit_y[1]) - R*u"mm") * cot(θ))
 end
-
-export get_z_from_energies
 
 
 function get_z_from_camera(c::NamedTuple, R)
@@ -120,9 +116,6 @@ function swap_CZT_hits(c::NamedTuple)
         hit_edep = [c.hit_edep[2], c.hit_edep[1]]
         )
 end
-
-export swap_CZT_hits
-
 
 function getz(file; name="segBEGe", center=81.76361317572471, ew=8)
     icpc, czt = LHDataStore(file) do lhd

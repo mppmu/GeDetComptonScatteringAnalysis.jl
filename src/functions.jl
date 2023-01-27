@@ -30,8 +30,6 @@ function polaris_dither(data)
     )))
 end
 
-export polaris_dither
-
 
 function correct_timestamps!(tables...)
     time_unit = unit(eltype(tables[1].evt_t))
@@ -56,8 +54,6 @@ function correct_timestamps!(tables...)
 
     tables
 end
-
-export correct_timestamps!
 
 
 function find_common_events(tables::Tuple{Any,Any}, delta_t::Number)
@@ -84,9 +80,6 @@ function find_common_events(tables::Tuple{Any,Any}, delta_t::Number)
     sel
 end
 
-export find_common_events
-
-
 const electron_mass = 510.9989u"keV"
 
 function compton_angle(E_in::Number, E_out::Number)
@@ -94,7 +87,5 @@ function compton_angle(E_in::Number, E_out::Number)
     T = typeof(cos_theta)
     (-1 < cos_theta < 1) ? T(acos(cos_theta)) : T(NaN)
 end
-export compton_angle
 
 compton_E_out(E_in::Number, θ::Real) = E_in / (1 + E_in/electron_mass * (1 - cos(θ)))
-export compton_E_out

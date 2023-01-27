@@ -38,8 +38,6 @@ function Cone(origin::AbstractVector, axis::AbstractVector, α::Number)
     return c
 end
 
-export Cone
-
 
 #=
 function cone_points(cone::Cone,t::Number,h::Number)::AbstractVector #origin,t,h,H,r1,r2,α)::Vector
