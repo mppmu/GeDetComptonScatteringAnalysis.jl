@@ -40,7 +40,7 @@ function get_z_from_energies(s::NamedTuple, c::NamedTuple, R,hv)
     # DAQ_energies
     # θ = compton_angle(cf*s.DAQ_energy*u"keV"+sum(c.hit_edep), sum(c.hit_edep))
     # CZT energies
-    θ = compton_angle(661.66*u"keV", sum(c.hit_edep)) 
+    θ = compton_angle(Cs_energy, sum(c.hit_edep)) 
     in_mm(T(c.hit_z[1]) + hypot(T(c.hit_x[1]), T(c.hit_y[1]) - R*u"mm") * cot(θ))
 end
 
@@ -117,16 +117,16 @@ function swap_CZT_hits(c::NamedTuple)
         )
 end
 
-function getz(file; name="segBEGe", center=81.76361317572471, ew=8)
+function getz(file; name="segBEGe", center=81.76361317572471, ew = 8.0u"keV")
     icpc, czt = LHDataStore(file) do lhd
         lhd[name][:], lhd["czt"][:]
     end
     hv = getV(file)
     ec = econv[hv]
-    icpc_e = ec*icpc.DAQ_energy
-    czt_e = ustrip(sum.(czt.hit_edep)) / 1000
-    idx = intersect(findall(x -> abs(x - 662) ≤ ew, icpc_e+czt_e), 
-                    findall(x -> 250 ≤ x ≤ 440, icpc_e))
+    icpc_e = ec*icpc.DAQ_energy * u"keV"
+    czt_e = uconvert.(u"keV", (sum.(czt.hit_edep)))
+    idx = intersect(findall(x -> abs(x - Cs_energy) ≤ ew, icpc_e+czt_e), 
+                    findall(x -> 250.0u"keV" ≤ x ≤ 440.0u"keV", icpc_e))
     icpc_hits = view(icpc, idx)
     czt_hits = view(czt, idx)
     R = center - getR(file)

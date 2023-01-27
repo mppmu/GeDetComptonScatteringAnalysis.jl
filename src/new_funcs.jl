@@ -15,7 +15,7 @@ function get_all_z(sourcedir; name="segBEGe", center=81.76361317572471)
     for i=eachindex(ffiles)
         R[i] = getR(ffiles[i])
         mtime[i] = getM(ffiles[i])
-        rec_zs = getz(joinpath(sourcedir, ffiles[i]); name, center, ew=20)
+        rec_zs = getz(joinpath(sourcedir, ffiles[i]); name, center, ew = 20.0u"keV")
         push!(z, rec_zs[:, 1])
     end
     mtime, R, z
