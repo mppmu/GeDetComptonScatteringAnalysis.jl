@@ -21,7 +21,7 @@ julia> r = 47.8         # radial position of radiation source (in mm)
 julia> phi = 88.5       # azimuthal position of radiation source (in degrees)
 julia> z = 62.8         # height of czt cameras (in mm)
 julia> name = "segBEGe" # group name of detector in raw lh5 files
-julia> stack_and_merge_at_z(datapath, destdir, R[1], Phi, Z, 600., "segBEGe")
+julia> stack_and_merge_at_z(datapath, destdir, r, phi, z, hv, name)
 ```
 reconstruct z positions
 ```julia

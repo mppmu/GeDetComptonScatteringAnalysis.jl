@@ -37,8 +37,10 @@ function build_output_fname(files, destdir, n)
     destdir = joinpath(destdir, "")
     fpos, ftime = split(basename(files[end]), "measuretime_")
     fmtime, fdate = split(ftime, "sec")
+    ending, _ = split(fdate, "filtered")
     fmtime = n*parse(Int32, fmtime)
-    joinpath(destdir, fpos * "measuretime_$(fmtime)sec" * fdate)
+    joinpath(destdir, 
+        fpos * "measuretime_$(fmtime)sec" * ending * "preprocessed.lh5")
 end
 
 function get_nseg(f::LHDataStore, name::String)
