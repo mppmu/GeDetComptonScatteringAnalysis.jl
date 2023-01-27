@@ -19,7 +19,6 @@ write_all(f::LHDataStore, name::String , data::Tuple{Table, Table}) = begin
 end
 
 function fetch_relevant_files(sourcedir, phi, z, r, hv_in_fname, n_max_files)
-    sourcedir = joinpath(sourcedir, "")
     allfiles = filter(file -> endswith(file, "filtered.h5")
                             && occursin("Phi_$(phi)", file)
                             && occursin("Z_$(z)", file)
