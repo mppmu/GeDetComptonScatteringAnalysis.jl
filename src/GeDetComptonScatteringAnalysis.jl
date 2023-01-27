@@ -8,16 +8,16 @@ using LinearAlgebra
 using Statistics
 
 using ArraysOfArrays
+using ArraysOfArrays: no_consistency_checks
 using IntervalSets
+using LegendHDF5IO
 using LsqFit
 using RecipesBase
+using Rotations
+using StaticArrays
 using Tables
 using TypedTables
 using Unitful
-using LegendHDF5IO
-using Rotations
-using StaticArrays
-using ArraysOfArrays: no_consistency_checks
 
 export get_z_from_2_hit_events, get_z_from_energies, swap_CZT_hits
 export polaris_dither, correct_timestamps!, find_common_events
@@ -27,7 +27,6 @@ export Cone
 
 
 include("functions.jl")
-# include("plot_recipes.jl")
 include("cone.jl")
 include("compton_scanner_analysis.jl")
 include("pileup.jl")
@@ -36,5 +35,6 @@ include("IO.jl")
 include("stack_and_merge.jl")
 include("transformations.jl")
 include("new_funcs.jl")
+# include("plot_recipes.jl")
 
 end # module
