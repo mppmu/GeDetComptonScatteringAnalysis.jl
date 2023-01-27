@@ -26,7 +26,6 @@ export stack_and_merge_at_z, get_all_z
 export Cone
 
 
-include("multifind.jl")
 include("functions.jl")
 # include("plot_recipes.jl")
 include("cone.jl")

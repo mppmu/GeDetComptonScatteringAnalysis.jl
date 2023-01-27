@@ -1,7 +1,12 @@
 # This file is a part of GeDetComptonScatteringAnalysis.jl, licensed under the MIT License (MIT).
 
-
 using Plots # TODO: Temporary, replace plot commands by recipes!!!
+
+function multifind(predicate::Function, data, colname::Symbol...)
+    cols = Tables.columns(data)
+    f(xs) = predicate(xs...)
+    findall(f, collect(zip(cols...))) # TODO: Get rid of collect here
+end
 
 function polaris_stdplots(events, idxs::Union{AbstractVector{<:Integer},Colon} = :)
     hit_x = deepmap(x -> ustrip(uconvert(u"mm", x)), events[idxs].hit_x)
