@@ -21,7 +21,6 @@ function stack_and_merge_at_z(sourcedir::String, destdir::String, r, phi,
         file, name, hv; idx_c, corr_daq_energy, rm_pileup)
     x = ((missing, missing), 0)
     for i=eachindex(files)
-        println("at $i")
         x = _vcat!(x, _read_file(files[i]))
     end
     println("$(x[2]) / $(length(files)) successfull")
