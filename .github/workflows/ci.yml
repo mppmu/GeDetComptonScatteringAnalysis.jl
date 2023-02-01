@@ -45,8 +45,8 @@ jobs:
             ${{ runner.os }}-test-${{ env.cache-name }}-
             ${{ runner.os }}-test-
             ${{ runner.os }}-
-      - name: Add LegendHDF5IO
-        run: julia -e 'using Pkg; Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/JuliaRegistries/General")); Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/legend-exp/LegendJuliaRegistry")); Pkg.add(url = "https://github.com/legend-exp/LegendHDF5IO.jl", rev = "main")'
+      - name: Add LegendJuliaRegistry
+        run: julia -e 'using Pkg; Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/JuliaRegistries/General")); Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/legend-exp/LegendJuliaRegistry"))'
         shell: bash
       - uses: julia-actions/julia-buildpkg@latest
       - uses: julia-actions/julia-runtest@latest

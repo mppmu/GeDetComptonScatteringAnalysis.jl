@@ -1,10 +1,5 @@
 # This file is a part of GeDetComptonScatteringAnalysis.jl, licensed under the MIT License (MIT).
 
-using Pkg
-Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/JuliaRegistries/General"))
-Pkg.Registry.add(Pkg.RegistrySpec(url = "https://github.com/legend-exp/LegendJuliaRegistry"))
-Pkg.add(url = "https://github.com/legend-exp/LegendHDF5IO.jl", rev = "main")
-
 using Test
 using GeDetComptonScatteringAnalysis
 
