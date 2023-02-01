@@ -59,7 +59,7 @@ function get_econv(sourcedir; i0=1, bsize=1000, max=1_500_000, name="segBEGe")::
     end
     h = fit(Histogram{Float64}, E, (1:bsize:max))
     _, peakpos = RadiationSpectra.peakfinder(h)
-    return 661.660 / peakpos[1]
+    return ustrip(Cs_energy) / peakpos[1]
 end
 
 function get_daqe(x::TypedTables.Table, i::Int)
