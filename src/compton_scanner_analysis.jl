@@ -173,3 +173,99 @@ function get_all_z(sourcedir; name="segBEGe", center=81.76361317572471)
     end
     mtime, R, z
 end
+
+function get_z_and_wavefroms(file, hv; i=1, name="segBEGe", ew= 8.0u"keV", Δz=2)
+    det, czt = LHDataStore(file) do lhd
+        lhd[name][:], lhd["czt"][:]
+    end
+    det = begin
+        idx = findall(x -> x == i, det.chid)
+        det[idx]
+    end
+    println("here")
+    ec = econv[hv]
+    icpc_e = ec*det.DAQ_energy * u"keV"
+    czt_e = uconvert.(u"keV", (sum.(czt.hit_edep)))
+    idx = intersect(findall(x -> abs(x - Cs_energy) ≤ ew, icpc_e+czt_e), 
+                    findall(x -> 250.0u"keV" ≤ x ≤ 440.0u"keV", icpc_e))
+    det_hits = view(det, idx)
+    czt_hits = view(czt, idx)
+    R = cntr - getR(file)
+
+    @info "Reconstructing Z from two hit events at R = $R"
+    idx_2h = findall(is_valid_2hit, czt_hits);
+    idx_1h = findall(x -> x == 1, czt_hits.evt_nhits)
+    det_1hit = view(det_hits, idx_1h)
+    czt_1hit = view(czt_hits, idx_1h)
+    det_2hit = view(det_hits, idx_2h)
+    czt_2hit = view(czt_hits, idx_2h)
+
+    @time z_rec_1hit = get_z_from_energies.(det_1hit, czt_1hit, R, hv)
+    @time z_rec_2hit = get_z_from_2_hit_events.(det_2hit, czt_2hit, R; Δz, hv)
+    idx_val = findall(x -> x[1] != 0, z_rec_2hit)
+    z_rec_2hit_val = [x[2] for x in z_rec_2hit[idx_val]]
+    return z_rec_2hit_val, z_rec_1hit, det_2hit.samples[idx_val], det_hits.samples[idx_1h] 
+end
+
+export get_z_and_wavefroms
+
+function reconstruct_at_radius(file, hv)
+    z_rec_2h, z_rec_1h, wf_2hit, wf_1hit = get_z_and_wavefroms(file, hv)
+    superpulses_Cs = []
+    z_Cs = collect(0:Δz:40)
+    mask = zeros(Bool, length(z_Cs))
+    for i=eachindex(z_Cs)
+        # filter waveforms from validated two hit events
+        idxz = findall(z -> abs(z - z_Cs[i]), z_rec_2h)
+        length(wfs_at_z) == 0 && break
+
+        wfs_at_z = map(baseline_corr, wf_2h[idxz])
+        sprpls = superpulse(wfs_at_z)
+
+    end
+end
+
+export reconstruct_at_radius
+
+function baseline_corr(wf; m=500)
+    return wf .- mean(wf[1:m])
+end
+
+function superpulse(wfs::Vector{T}; τ::Float64=51.8, 
+window::Tuple{Int, Int}=(500, 500)) where {T}
+    wfs = time_align.(decay_correction.(wfs, exp(-0.004/τ)), at = 0.5, window)
+    filter!(wf -> length(wf) == sum(window) + 1, wfs)
+    if length(wfs) > 0
+        w = sum([mean(wf[end-300:end]) for wf in wfs])
+        return sum([wf/w for wf in wfs])
+    else
+        return fill(NaN, sum(window) + 1)
+    end
+end
+
+@fastmath function time_align(wf::AbstractArray{T, 1}; at::T = 0.5, 
+window::Tuple{Int64, Int64} = (500, 500))::Vector{T} where {T<:AbstractFloat} #for aligning decay corrected wfs
+    @inbounds begin
+        wfmax = mean(wf[end-300:end]) #should be already decay corrected 
+        idx = Int(find_crossing(smooth20(wf), at*wfmax, interpolate = false))
+        # @info idx
+        if idx ≤ window[1] || length(wf) - window[2] < idx
+            @warn "Time outside of bounds, wf not aligned"
+            return wf
+        end
+        # @info "here"
+        tawf = [wf[i] for i in idx - window[1] : idx + window[2]]
+        # @info size(tawf)
+        tawf
+    end
+end
+
+@fastmath function decay_correction(wf::AbstractVector{T}, decay_factor::T
+)::Vector{T} where {T<:AbstractFloat}
+    rp = Vector{T}(undef, length(wf))
+    rp[1] = wf[1]
+    @inbounds for i in 2:length(rp)
+        rp[i] = wf[i] + rp[i-1] - wf[i-1] * decay_factor
+    end
+    rp
+end
