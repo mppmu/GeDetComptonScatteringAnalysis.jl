@@ -12,9 +12,11 @@ using ArraysOfArrays: no_consistency_checks
 using IntervalSets
 using LegendHDF5IO
 using LsqFit
+using RadiationSpectra
 using RecipesBase
 using Rotations
 using StaticArrays
+using StatsBase
 using Tables
 using TypedTables
 using Unitful
