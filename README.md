@@ -4,7 +4,7 @@
 
 Main functions of interest are `stack_and_merge_at_z()` and `get_all_z()`.
 `stack_and_merge_at_z` produces for a specified radius, height z and 
-angle phi one filtered lh5 file, containing the core DAQ_energies and 
+angle phi one preprocessed lh5 file, containing the core DAQ_energies and 
 merged data from both czt cameras.\
 `get_all_z` uses those previously produced files to reconstruct the z 
 position of each 'two-hit' event.
