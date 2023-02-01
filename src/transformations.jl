@@ -4,7 +4,7 @@ const x_CZT, y_CZT, z_CZT = 1000u"μm" .* (-4.5, 81.764-1.55, -62.8 + 19.75)
 const δ = [x_CZT, y_CZT, z_CZT]
 const α2 = 45.3695 * π/180
 const δ2 = 1000u"μm" .* [64.1275058422767, -31.859041946909453, 0.4]
-
+const cntr = 81.76361317572471
 
 function get_global_cam_positions(c::NamedTuple)
     #transform local CZT coordinates to global coordinate system
