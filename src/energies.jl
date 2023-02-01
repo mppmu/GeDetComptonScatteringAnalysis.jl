@@ -42,7 +42,7 @@ DAQ_energy from the core. `i0` denotes the index of the core segment,
 `nseg` the number of segments ,`max` the maximal raw value to 
 consider in the histogram and `name` the name of the table
 """
-function get_econv(sourcedir; i0=1, bsize=1000, max=1_500_000, name="segBEGe")::Float64
+function get_econv(sourcedir; i0=1, bsize=1000, max=1_500_000, name="segBEGe")::typeof(Cs_energy)
     E = Int32[]
     files = readdir(sourcedir)
     N = length(files)
@@ -59,7 +59,7 @@ function get_econv(sourcedir; i0=1, bsize=1000, max=1_500_000, name="segBEGe")::
     end
     h = fit(Histogram{Float64}, E, (1:bsize:max))
     _, peakpos = RadiationSpectra.peakfinder(h)
-    return ustrip(Cs_energy) / peakpos[1]
+    Cs_energy / peakpos[1]
 end
 
 function get_daqe(x::TypedTables.Table, i::Int)
