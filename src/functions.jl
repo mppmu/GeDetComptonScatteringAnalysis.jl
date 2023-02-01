@@ -9,11 +9,6 @@ function triangular_dither(x::Number, width::Number = one(typeof(x)) * unit(x))
 end
 
 
-pos_in_mm(raw_x::Real) = raw_x * 1E-6 * 1E-3
-
-edep_in_keV(raw_edep::Real) = raw_edep * 1E-3
-
-
 function polaris_dither(data)
     T_time = typeof(Float64(1)u"μs")
     T_pos = typeof(Float32(1)u"mm")
@@ -29,8 +24,6 @@ function polaris_dither(data)
         hit_edep = deepmap(x -> convert(T_energy, triangular_dither(x)), data.hit_edep),
     )))
 end
-
-export polaris_dither
 
 
 function correct_timestamps!(tables...)
@@ -57,8 +50,6 @@ function correct_timestamps!(tables...)
     tables
 end
 
-export correct_timestamps!
-
 
 function find_common_events(tables::Tuple{Any,Any}, delta_t::Number)
     t = (tables[1].evt_t, tables[2].evt_t)
@@ -84,9 +75,6 @@ function find_common_events(tables::Tuple{Any,Any}, delta_t::Number)
     sel
 end
 
-export find_common_events
-
-
 const electron_mass = 510.9989u"keV"
 
 function compton_angle(E_in::Number, E_out::Number)
@@ -94,7 +82,5 @@ function compton_angle(E_in::Number, E_out::Number)
     T = typeof(cos_theta)
     (-1 < cos_theta < 1) ? T(acos(cos_theta)) : T(NaN)
 end
-export compton_angle
 
 compton_E_out(E_in::Number, θ::Real) = E_in / (1 + E_in/electron_mass * (1 - cos(θ)))
-export compton_E_out

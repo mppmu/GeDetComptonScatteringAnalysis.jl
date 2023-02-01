@@ -1,9 +1,3 @@
-measuredd = 106.5
-measuredh = 1.3
-z_offset = -25.34
-global campos = [0.0,measuredd+z_offset,66.4+measuredh-47.5]u"mm"
-export campos
-
 mutable struct Cone
     origin::AbstractVector
     axis::AbstractVector
@@ -38,10 +32,8 @@ function Cone(origin::AbstractVector, axis::AbstractVector, α::Number)
     return c
 end
 
-export Cone
 
-
-
+#=
 function cone_points(cone::Cone,t::Number,h::Number)::AbstractVector #origin,t,h,H,r1,r2,α)::Vector
     return cone.origin + cos(cone.α)*h*cone.axis + h*sin(cone.α)*(cone.r1*cos(t) + cone.r2*sin(t))
 end
@@ -65,3 +57,4 @@ function plot_cone(cone::Cone, p::AbstractVector)
 end
 
 export plot_cone
+=#

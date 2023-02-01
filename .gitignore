@@ -4,3 +4,4 @@
 *.jl.mem
 .ipynb_checkpoints
 Manifest.toml
+test/results/
