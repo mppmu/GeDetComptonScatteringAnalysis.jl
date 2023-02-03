@@ -30,7 +30,8 @@ function stack_and_merge_at_z(sourcedir::String, destdir::String, r, phi,
 end
 
 function merge_data(::Table, czt::Table, czt2::Missing, z::Float64)
-    transform_czt1_coords!(czt.hit_x, czt.hit_y, czt.hit_z, z)
+    transform_czt1_coords!(czt.hit_x.data, czt.hit_y.data, czt.hit_z.data, z)
+    czt
 end
 
 function merge_data(ge, czt, czt2, z)
