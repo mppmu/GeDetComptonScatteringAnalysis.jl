@@ -17,18 +17,19 @@ end
 
 # lowest allocation method
 function transform_czt2_coords!(X::Vector{T}, Y::Vector{T}, Z::Vector{T}, 
-motor_z::U) where {T, U}
+motor_z::U)::Nothing where {T, U}
     t = SVector{3}(1000u"μm" .* (U(0), U(0), motor_z) .+ δ .+ δ2)
     R = RotZ(-α2)*RotY(π)
     @inbounds for i=eachindex(X)
         v = SVector{3, eltype(t)}(X[i], -Z[i], -Y[i])
         X[i], Y[i], Z[i] = round.(T, R * v + t)
     end
+    nothing
 end
 
 # lowest allocation method 
 function transform_czt1_coords!(X::Vector{T}, Y::Vector{T}, Z::Vector{T}, 
-motor_z::U) where {T, U}
+motor_z::U)::Nothing where {T, U}
     t = round.(T, (1000u"μm" .* (U(0), U(0), motor_z) .+ δ))
     @inbounds for i=eachindex(X)
         Y_i = Y[i]
@@ -36,5 +37,6 @@ motor_z::U) where {T, U}
         Y[i] = t[2] - Z[i]
         Z[i] = t[3] - Y_i
     end
+    nothing
 end
 
