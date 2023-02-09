@@ -174,7 +174,7 @@ function get_all_z(sourcedir; name="segBEGe", center=81.76361317572471)
     mtime, R, z
 end
 
-function get_z_and_wavefroms(file, hv; i=1, name="segBEGe", ew= 8.0u"keV", Δz=2)
+function get_z_and_wavefroms(file, hv; i=1, name="segBEGe", ew= 8.0u"keV", Δz=1)
     det, czt = LHDataStore(file) do lhd
         lhd[name][:], lhd["czt"][:]
     end
@@ -209,54 +209,89 @@ end
 
 export get_z_and_wavefroms
 
-function reconstruct_at_radius(file, hv)
+function normalizewf(x::Vector{T}, l::Int) where {T}
+    max = mean(x[end-l:end])
+    x/max
+end
+
+function normalizewf(x::Vector{Vector{T}}, l::Int) where {T}
+    max = sum([mean(x[i][end-l:end]) for i=eachindex(x)])
+    sum([wfm/max for wfm=wfs_aligned])
+end
+
+function reconstruct_at_radius(file, hv; Δz=1, window=(500, 500), τ=51.8, 
+χ2_max=3, l1=300)
     z_rec_2h, z_rec_1h, wf_2hit, wf_1hit = get_z_and_wavefroms(file, hv)
     superpulses_Cs = []
     z_Cs = collect(0:Δz:40)
     mask = zeros(Bool, length(z_Cs))
     for i=eachindex(z_Cs)
         # filter waveforms from validated two hit events
-        idxz = findall(z -> abs(z - z_Cs[i]), z_rec_2h)
+        idxz2 = findall(z -> abs(z - z_Cs[i]) < Δz, z_rec_2h)
         length(wfs_at_z) == 0 && break
+        wfs2_at_z = baseline_corr.(wf_2hit[idxz2])
+        # TODO check usefulleness of is_singlesite
+        # wfs_at_z = filter(wf -> is_singlesite(wf), wfs_at_z)
+        # sprpls = superpulse(wfs_at_z)
+        wlength = sum(window) + 1
+        wfs2_at_z = decay_correction.(wfs2_at_z, exp(-0.004/τ))
+        wfs_aligned = time_align.(wfs2_at_z; 0.5, window)
+        filter!(wfm -> length(wfm) == wlength, wfs_aligned)
+        length(wfs_aligned) == 0 && break
 
-        wfs_at_z = map(baseline_corr, wf_2h[idxz])
-        sprpls = superpulse(wfs_at_z)
+        # wmax = sum([mean(wfm[end-l1:end]) for wfm=wfs_aligned])
+        # sp = sum([wfm/wmax for wfm=wfs_aligned])
+        sp = normalizewf(wfs_aligned, l1)
+        χ2 = [chi_sq_wfs(normalizewf(wfm, l1), sp) for wfm=wfs_aligned]
+        idx_chi2 = findall(x -> x < χ2_max, χ2)
+        length(idx_chi2) == 0 && break
+
+        # wmax = sum([mean(wfm[end-l1:end]) for wfm=wfs_aligned[idx_chi2]])
+        # sp = sum([wfm/wmax for wfm=wfs_aligned])
+        sp = normalizewf(wfs_aligned[idx_chi2], l1)
+
+        idxz1 = findall(z -> abs(z - z_Cs[i]) < Δz, z_rec_1h)
+        wfs1_at_z = baseline_corr.(wf_1hit[idxz1])
+        wfs1_at_z = decay_correction.(wfs1_at_z, exp(-0.004/τ))
+        wfs1_aligned = time_align.(wfs1_at_z; 0.5, window)
 
     end
 end
 
 export reconstruct_at_radius
 
-function baseline_corr(wf; m=500)
-    return wf .- mean(wf[1:m])
-end
+baseline_corr(wf; m=500) = wf .- mean(wf[1:m])
 
-function superpulse(wfs::Vector{T}; τ::Float64=51.8, 
-window::Tuple{Int, Int}=(500, 500)) where {T}
-    wfs = time_align.(decay_correction.(wfs, exp(-0.004/τ)), at = 0.5, window)
-    filter!(wf -> length(wf) == sum(window) + 1, wfs)
-    if length(wfs) > 0
-        w = sum([mean(wf[end-300:end]) for wf in wfs])
-        return sum([wf/w for wf in wfs])
-    else
-        return fill(NaN, sum(window) + 1)
-    end
-end
+# function superpulse(wfs::Vector{T}; τ::Float64=51.8, 
+# window::Tuple{Int, Int}=(500, 500)) where {T}
+#     wlength = sum(window) + 1
+#     wfs = decay_correction.(wfs, exp(-0.004/τ))
+#     wfs = time_align.(wfs, at=0.5, window=(500, 500))
+#     filter!(wf -> length(wf) == wlength, wfs)
+#     if length(wfs) > 0
+#         w = sum([mean(wf[end-300:end]) for wf in wfs])
+#         return sum([wf/w for wf in wfs])
+#     else
+#         return fill(NaN, sum(window) + 1)
+#     end
+# end
 
-@fastmath function time_align(wf::AbstractArray{T, 1}; at::T = 0.5, 
-window::Tuple{Int64, Int64} = (500, 500))::Vector{T} where {T<:AbstractFloat} #for aligning decay corrected wfs
+# export superpulse
+
+
+"""
+    time_align(wf::AbstractVector{T}; at::T, window::Tuple{Int, Int})
+"""
+@fastmath function time_align(wf::AbstractVector{T}; at::T=0.5, 
+window::Tuple{Int, Int}=(500, 500))::Vector{T} where {T<:AbstractFloat}
     @inbounds begin
-        wfmax = mean(wf[end-300:end]) #should be already decay corrected 
+        wfmax = mean(wf[end-300:end])
         idx = Int(find_crossing(smooth20(wf), at*wfmax, interpolate = false))
-        # @info idx
         if idx ≤ window[1] || length(wf) - window[2] < idx
             @warn "Time outside of bounds, wf not aligned"
             return wf
         end
-        # @info "here"
-        tawf = [wf[i] for i in idx - window[1] : idx + window[2]]
-        # @info size(tawf)
-        tawf
+        wf[idx-window[1]:idx+window[2]]
     end
 end
 
@@ -268,4 +303,52 @@ end
         rp[i] = wf[i] + rp[i-1] - wf[i-1] * decay_factor
     end
     rp
+end
+
+function smooth20(wv::Vector{T})::Vector{T} where {T <: AbstractFloat}
+    w::Vector{T} = T[ 0.0,
+                     0.010329700377119983,
+                     0.022145353094771694,
+                     0.034827599769728275,
+                     0.04766125969628491,
+                     0.05988618988841385,
+                     0.07075302574183234,
+                     0.07957926681837389,
+                     0.08580108206476868,
+                     0.0890165225487064,
+                     0.0890165225487064,
+                     0.08580108206476868,
+                     0.07957926681837389,
+                     0.07075302574183234,
+                     0.05988618988841385,
+                     0.04766125969628491,
+                     0.034827599769728275,
+                     0.022145353094771694,
+                     0.010329700377119983,
+                     0.0 ]
+    DSP.filtfilt(w, T[1], wv)
+end
+
+@fastmath function find_crossing(wf::AbstractArray{T, 1}, thold::T; window::Tuple{Int64, Int64} = (100, 1100), interpolate::Bool = true)::T where {T<:AbstractFloat}
+    @inbounds begin
+        cross = -1
+        i = window[1]
+        while cross == -1 && i < window[2]
+            if wf[i] ≤ thold && wf[i+1] ≥ thold
+                cross = i
+            else
+                i = i+1
+            end
+        end
+        if cross != -1 && interpolate
+            cross = cross + (thold - wf[cross])/(wf[cross+1] - wf[cross])     
+        end
+        return cross
+    end
+end
+
+function chi_sq_wfs(x, y, window=400:600, l=150)
+    varx = var(x[1:l])
+    vary = var(y[1:l])
+    sum((x[window] - y[window]).^2) / ((length(window) - 1)*(varx + vary))
 end
