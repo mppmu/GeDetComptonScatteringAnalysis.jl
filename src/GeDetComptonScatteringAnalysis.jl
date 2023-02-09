@@ -9,6 +9,7 @@ using Statistics
 
 using ArraysOfArrays
 using ArraysOfArrays: no_consistency_checks
+using DSP
 using IntervalSets
 using LegendHDF5IO
 using LsqFit
