@@ -123,7 +123,7 @@ end
         evt.hit_z[2] - evt.hit_z[1]) > 3.0u"mm"
 end
 
-function getz(file; name="segBEGe", center=81.76361317572471, ew = 8.0u"keV")
+function getz(file; name="segBEGe", center=cntr, ew = 8.0u"keV", Δz=2)
     icpc, czt = LHDataStore(file) do lhd
         lhd[name][:], lhd["czt"][:]
     end
@@ -138,14 +138,14 @@ function getz(file; name="segBEGe", center=81.76361317572471, ew = 8.0u"keV")
     R = center - getR(file)
 
     @info "Reconstructing Z from two hit events at R = $R"
-    idx_2h = findall(is_valid_2hit, czt_hits);
-    czt_2hit = view(czt_hits, idx_2h);
-    icpc_2hit = view(icpc_hits, idx_2h);
+    idx_2h = findall(is_valid_2hit, czt_hits)
+    czt_2hit = view(czt_hits, idx_2h)
+    icpc_2hit = view(icpc_hits, idx_2h)
     # TODO: resolve allocation issues by passing fixed empty array
-    zrec2hit = get_z_from_2_hit_events.(icpc_2hit, czt_2hit, R; Δz = 2, hv);
-    idx_val_1 = findall(x -> x[1] == 1, zrec2hit);
-    idx_val_2 = findall(x -> x[1] == 2, zrec2hit);
-    idx_val = vcat(idx_val_1, idx_val_2);
+    zrec2hit = get_z_from_2_hit_events.(icpc_2hit, czt_2hit, R; Δz = Δz, hv)
+    idx_val_1 = findall(x -> x[1] == 1, zrec2hit)
+    idx_val_2 = findall(x -> x[1] == 2, zrec2hit)
+    idx_val = vcat(idx_val_1, idx_val_2)
 
     # TODO: decide on what reconstructed z we really want 
     # from core -> 2
@@ -160,7 +160,7 @@ end
 loop through all files in `sourcedir` and return for each file the radius, 
 measuretime and reconstructed z's
 """
-function get_all_z(sourcedir; name="segBEGe", center=81.76361317572471)
+function get_all_z(sourcedir; name="segBEGe", center=cntr, ew = 8.0u"keV")
     ffiles = filter(x -> endswith(x, "preprocessed.lh5"), readdir(sourcedir))
     R = zeros(length(ffiles))
     mtime = zeros(length(ffiles))
@@ -168,7 +168,7 @@ function get_all_z(sourcedir; name="segBEGe", center=81.76361317572471)
     for i=eachindex(ffiles)
         R[i] = getR(ffiles[i])
         mtime[i] = getM(ffiles[i])
-        rec_zs = getz(joinpath(sourcedir, ffiles[i]); name, center, ew = 20.0u"keV")
+        rec_zs = getz(joinpath(sourcedir, ffiles[i]); name, center, ew = ew)
         push!(z, rec_zs[:, 1])
     end
     mtime, R, z
@@ -212,15 +212,15 @@ export get_z_and_wavefroms
 """
     reconstruct_at_radius(file::AbstractString), hv::Float64; Δz::Int=1,
     window::Tuple{Int, Int}=(500, 500), τ::Float64=51.8,
-    χ2_max::Float64=3., l1::Int=300)
+    χ2_max::Float64=3., l1::Int=300, ew = 8.0u"keV")
 
 Given a `file` and a specified voltage `hv`, build the superpulses from 
 two hit and one hit validated hits.  
 """
 function reconstruct_at_radius(file::AbstractString, hv::Float64; Δz::Int=1, 
 window::Tuple{Int, Int}=(500, 500), τ::Float64=51.8, χ2_max::Float64=3., 
-l1::Int=300)
-    z2h, z1h, wf2h, wf1h = get_z_and_wavefroms(file, hv)
+l1::Int=300, ew = 8.0u"keV", baseline_samples::Int = 500)
+    z2h, z1h, wf2h, wf1h = get_z_and_wavefroms(file, hv, ew = ew)
     wlength = sum(window)+1
     superpulses_Cs = []
     z_Cs = collect(0:2:40)
@@ -231,9 +231,9 @@ l1::Int=300)
         idxz2 = findall(z -> abs(z - z_Cs[i]) < Δz, z2h)
         length(idxz2) == 0 && break
         # TODO check usefulleness of is_singlesite
-        wf2h_at_z = baseline_corr.(wf2h[idxz2]; m=500)
+        wf2h_at_z = baseline_corr.(wf2h[idxz2]; m=baseline_samples)
         wf2h_at_z = decay_correction.(wf2h_at_z, exp(-0.004/τ))
-        wfs_aligned = time_align.(wf2h_at_z; p=0.5, window=window, l=300)
+        wfs_aligned = time_align.(wf2h_at_z; p=0.5, window=window, l=l1)
         filter!(wfm -> length(wfm) == wlength, wfs_aligned)
         length(wfs_aligned) == 0 && break
 
@@ -245,9 +245,9 @@ l1::Int=300)
         # new superpulse from 2hit waveforms which passed first χ2
         sp = normalizewf(wfs_aligned[chi_2h]; l=l1)
         idxz1 = findall(z -> abs(z - z_Cs[i]) < Δz, z1h)
-        wfs1_at_z = baseline_corr.(wf1h[idxz1]; m=500)
+        wfs1_at_z = baseline_corr.(wf1h[idxz1]; m=baseline_samples)
         wfs1_at_z = decay_correction.(wfs1_at_z, exp(-0.004/τ))
-        wfs1_aligned = time_align.(wfs1_at_z; p=0.5, window=window, l=300)
+        wfs1_aligned = time_align.(wfs1_at_z; p=0.5, window=window, l=l1)
         filter!(wfm -> length(wfm) == wlength, wfs1_aligned)
         if length(wfs1_aligned) == 0
             append!(superpulses_Cs, [sp])
