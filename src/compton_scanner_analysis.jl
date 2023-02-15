@@ -32,12 +32,12 @@ end
 
 
 function get_z_from_energies(s::NamedTuple, c::NamedTuple, R,hv)
-    cf = econv[hv]
     T = typeof(1.0*unit(eltype(c.hit_x)))
     # TODO: add flag if we want to rely more on camera or DAQ_energies?
     # if ge not depleted -> worse energy resolution -> rely more on camera 
     # energy resolution
     # DAQ_energies
+    # cf = econv[hv]
     # θ = compton_angle(cf*s.DAQ_energy*u"keV"+sum(c.hit_edep), sum(c.hit_edep))
     # CZT energies
     θ = compton_angle(Cs_energy, sum(c.hit_edep)) 
@@ -100,12 +100,7 @@ function validate_z(z::AbstractFloat, cone::Cone, R::AbstractFloat; Δα::Number
     αnew = acos(dot(cone.axis, tmp/norm(tmp)))
 
     #keep only true angles
-    if abs(cone.α - αnew) < Δα
-        return true
-    else
-        return false
-    end
-
+    return abs(cone.α - αnew) < Δα
 end
 
 function swap_CZT_hits(c::NamedTuple)
@@ -174,7 +169,7 @@ function get_all_z(sourcedir; name="segBEGe", center=cntr, ew = 8.0u"keV")
     mtime, R, z
 end
 
-function get_z_and_wavefroms(file, hv; i=1, name="segBEGe", ew= 8.0u"keV", Δz=1)
+function get_z_and_waveforms(file, hv; i=1, name="segBEGe", ew= 8.0u"keV", Δz=1)
     det, czt = LHDataStore(file) do lhd
         lhd[name][:], lhd["czt"][:]
     end
@@ -206,7 +201,6 @@ function get_z_and_wavefroms(file, hv; i=1, name="segBEGe", ew= 8.0u"keV", Δz=1
     return z_rec_2hit_val, z_rec_1hit, det_2hit.samples[idx_val], det_hits.samples[idx_1h] 
 end
 
-export get_z_and_wavefroms
 
 # TODO: find better solution for handling kwargs
 """
@@ -220,7 +214,7 @@ two hit and one hit validated hits.
 function reconstruct_at_radius(file::AbstractString, hv::Float64; Δz::Int=1, 
 window::Tuple{Int, Int}=(500, 500), τ::Float64=51.8, χ2_max::Float64=3., 
 l1::Int=300, ew = 8.0u"keV", baseline_samples::Int = 500)
-    z2h, z1h, wf2h, wf1h = get_z_and_wavefroms(file, hv, ew = ew)
+    z2h, z1h, wf2h, wf1h = get_z_and_waveforms(file, hv, ew = ew)
     wlength = sum(window)+1
     superpulses_Cs = []
     z_Cs = collect(0:2:40)
@@ -230,7 +224,7 @@ l1::Int=300, ew = 8.0u"keV", baseline_samples::Int = 500)
         println("$i/$(length(z_Cs))  z = $(z_Cs[i])")
         idxz2 = findall(z -> abs(z - z_Cs[i]) < Δz, z2h)
         length(idxz2) == 0 && break
-        # TODO check usefulleness of is_singlesite
+        # TODO check usefulness of is_singlesite
         wf2h_at_z = baseline_corr.(wf2h[idxz2]; m=baseline_samples)
         wf2h_at_z = decay_correction.(wf2h_at_z, exp(-0.004/τ))
         wfs_aligned = time_align.(wf2h_at_z; p=0.5, window=window, l=l1)
@@ -263,8 +257,6 @@ l1::Int=300, ew = 8.0u"keV", baseline_samples::Int = 500)
     end
     superpulses_Cs, mask, z_Cs
 end
-
-export reconstruct_at_radius
 
 function normalizewf(x; l::Int=300)
     max = mean(x[end-l:end])

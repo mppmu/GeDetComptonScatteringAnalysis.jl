@@ -26,6 +26,8 @@ export get_z_from_2_hit_events, get_z_from_energies, swap_CZT_hits
 export polaris_dither, correct_timestamps!, find_common_events
 export compton_angle, compton_E_out
 export stack_and_merge_at_z, get_all_z
+export get_z_and_waveforms, reconstruct_at_radius
+export get_daqe
 export Cone
 
 

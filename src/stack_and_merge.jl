@@ -23,7 +23,7 @@ function stack_and_merge_at_z(sourcedir::String, destdir::String, r, phi,
     for i=eachindex(files)
         x = _vcat!(x, _read_file(files[i]))
     end
-    println("$(x[2]) / $(length(files)) successfull")
+    println("$(x[2]) / $(length(files)) successful")
     fileout = build_output_fname(files, destdir, x[2])
     LHDataStore(f -> write_all(f, name, x[1]), fileout, "w")
     chmod(fileout, 0o774)

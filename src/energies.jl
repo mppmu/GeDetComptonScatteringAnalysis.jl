@@ -67,5 +67,3 @@ function get_daqe(x::TypedTables.Table, idx_c::Int)
     chid = x.chid[:]
     daqe[findall(x -> x == idx_c, chid)]
 end
-
-export get_daqe
