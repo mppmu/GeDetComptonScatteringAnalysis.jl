@@ -43,7 +43,7 @@ function build_output_fname(files, destdir, n)
 end
 
 function get_nseg(f::LHDataStore, name::String)
-    chid = f[name*"/chid"][1:10]
+    chid = f[name*"/chid"][:]
     length(unique(chid))
 end
 
