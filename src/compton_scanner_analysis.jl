@@ -119,9 +119,7 @@ end
 end
 
 function getz(file; name="segBEGe", center=cntr, ew = 8.0u"keV", Δz=2)
-    det, czt = LHDataStore(file) do lhd
-        lhd[name][:], lhd["czt"][:]
-    end
+    det, czt = read_preprocessed_file(file, name)
     hv = getV(file)
     ec = econv[hv] * u"keV"
     det_e = ec*det.DAQ_energy
@@ -170,9 +168,7 @@ function get_all_z(sourcedir::AbstractString; name::AbstractString="segBEGe", ce
 end
 
 function get_z_and_waveforms(file::AbstractString, hv; center = cntr, idx_c=1, name="segBEGe", ew= 8.0u"keV", Δz=1)
-    det, czt = LHDataStore(file) do lhd
-        lhd[name][:], lhd["czt"][:]
-    end
+    det, czt = read_preprocessed_file(file, name)
     det = det[findall(x -> x == idx_c, det.chid)]
     @assert length(det) == length(czt) "$name and czt do not have the same number of events"
     ec = econv[hv] * u"keV"
@@ -219,7 +215,7 @@ l1::Int=300, ew = 8.0u"keV", baseline_samples::Int = 500, verbose::Bool = true)
     mask = zeros(Bool, length(z_Cs))
     if verbose prog = ProgressUnknown("Reconstructing superpulses at z =") end
     for i=eachindex(z_Cs)
-        verbose && ProgressMeter.update!(p, i)
+        verbose && ProgressMeter.update!(prog, i)
         idxz2 = findall(z -> abs(z - z_Cs[i]) < Δz, z2h)
         length(idxz2) == 0 && break
         # TODO check usefulness of is_singlesite

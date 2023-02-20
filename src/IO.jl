@@ -13,12 +13,12 @@ getZ(s::String) = parse(Float64, match(Regex(regZ), s).captures[1])
 getM(s::String) = parse(Float64, match(Regex(regM), s).captures[1])
 getV(s::String) = parse(Float64, match(Regex(regV), s).captures[1])
 
-write_all(f::LHDataStore, name::String , data::Tuple{Table, Table}) = begin
+write_preprocessed_file(f::LHDataStore, name::String , data::Tuple{Table, Table}) = begin
     LegendHDF5IO.writedata(f.data_store, "$name", data[1])
     LegendHDF5IO.writedata(f.data_store, "czt", data[2])
 end
 
-function fetch_relevant_files(sourcedir, phi, z, r, hv_in_fname, n_max_files)
+function fetch_relevant_filtered_files(sourcedir, phi, z, r, hv_in_fname, n_max_files)
     allfiles = filter(file -> endswith(file, "filtered.h5")
                             && occursin("Phi_$(phi)", file)
                             && occursin("Z_$(z)", file)
@@ -32,7 +32,7 @@ function fetch_relevant_files(sourcedir, phi, z, r, hv_in_fname, n_max_files)
     joinpath.(sourcedir, allfiles)
 end
 
-function build_output_fname(files, destdir, n)
+function build_output_prepocessed_file_name(files, destdir, n)
     destdir = joinpath(destdir, "")
     fpos, ftime = split(basename(files[end]), "measuretime_")
     fmtime, fdate = split(ftime, "sec")
@@ -42,33 +42,47 @@ function build_output_fname(files, destdir, n)
         fpos * "measuretime_$(fmtime)sec" * ending * "preprocessed.lh5")
 end
 
-function get_nseg(f::LHDataStore, name::String)
-    chid = f[name*"/chid"][:]
-    length(unique(chid))
+# function get_nseg(f::LHDataStore, name::String)
+#     chid = f[name*"/chid"][:]
+#     length(unique(chid))
+# end
+
+function is_filtered_file(f::AbstractString)::Bool
+    return (endswith(f, "-filtered.h5") || throw(ArgumentError, "Expected filtered file as input.")) && isfile(f)
 end
 
-
-function read_all(f::LHDataStore, name::String)
-    (f[name][:], f["czt"][:], "czt2" in keys(f) ? f["czt2"][:] : missing)
+function read_filtered_file(f::AbstractString, name::AbstractString)
+    @assert is_filtered_file(f)
+    LHDataStore(f) do lhd
+        lhd[name][:], lhd["czt"][:], haskey(lhd, "czt2") ? lhd["czt2"][:] : missing
+    end
 end
 
-function read_file(file, name, hv; idx_c=1, corr_daq_energy=false, 
-        rm_pileup=false)
+function read_and_merge_filtered_file(file, name, hv; idx_c=1, corr_daq_energy=false, rm_pileup=false)
     try
-        _get_nseg(lhd) = get_nseg(lhd, name)    # TODO: should we stay flexible?
-        _read_all(lhd) = read_all(lhd, name)
-        nseg = LHDataStore(_get_nseg, file)
-        detector, czt, czt2 = LHDataStore(_read_all, file)
-        core = detector[idx_c:nseg:length(detector)]
+        det, czt, czt2 = read_filtered_file(file, name)
+        nseg = length(unique(det.chid))
+        core = det[findall(det.chid .== idx_c)]
         cf = econv[hv]
         czt = merge_data(core, czt, czt2, getZ(file))
         corr_daq_energy && correct_DAQ_energy!(core, cf)
         idx = findall(e -> 250 ≤ cf*e ≤ 440, core.DAQ_energy)
-        rm_pileup && 
-            (idx = intersect(findall(is_not_peak_pileup, core.samples), idx))
+        rm_pileup && (idx = intersect(findall(is_not_peak_pileup, core.samples), idx))
         core[idx], czt[idx]
     catch  
         @warn "$file was ignored due to possible file issues"
         (missing, missing)
+    end
+end
+
+
+function is_preprocessed_file(f::AbstractString)::Bool 
+    return (endswith(f, "-preprocessed.lh5") || throw(ArgumentError, "Expected prepocessed file as input.")) && isfile(f)
+end
+
+function read_preprocessed_file(f::AbstractString, name::AbstractString)
+    @assert is_preprocessed_file(f)
+    LHDataStore(f) do lhd
+        lhd[name][:], lhd["czt"][:]
     end
 end

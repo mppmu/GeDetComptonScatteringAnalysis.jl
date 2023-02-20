@@ -12,20 +12,38 @@ _vcat!(x::Tuple{Tuple{Table, Table}, Int}, ::Tuple{Missing, Missing}) = x
 _vcat!(x::Tuple{Tuple{Table, Table}, Int}, y::Tuple{Table, Table}) = 
     (_vcat!(x[1], y), x[2] + 1)
 
+
+function read_and_merge_filtered_file(file, name, hv; idx_c=1, corr_daq_energy=false, rm_pileup=false)
+    try
+        det, czt, czt2 = read_filtered_file(file, name)
+        nseg = length(unique(det.chid))
+        core = det[findall(det.chid .== idx_c)]
+        cf = econv[hv]
+        czt = merge_data(core, czt, czt2, getZ(file))
+        corr_daq_energy && correct_DAQ_energy!(core, cf)
+        idx = findall(e -> 250 ≤ cf*e ≤ 440, core.DAQ_energy)
+        rm_pileup && (idx = intersect(findall(is_not_peak_pileup, core.samples), idx))
+        core[idx], czt[idx]
+    catch  
+        @warn "$file was ignored due to possible file issues"
+        (missing, missing)
+    end
+end
+
 function stack_and_merge_at_z(sourcedir::String, destdir::String, r, phi, 
         z, hv, name; idx_c=1, hv_in_filename=false, 
-        corr_daq_energy=false, rm_pileup=false, n_max_files=-1)
-    files = fetch_relevant_files(sourcedir, phi, z, r, hv_in_filename, 
+        corr_daq_energy=false, rm_pileup=false, n_max_files=-1, verbose::Bool = true)
+    files = fetch_relevant_filtered_files(sourcedir, phi, z, r, hv_in_filename, 
         n_max_files)
-    _read_file(file) = read_file(
-        file, name, hv; idx_c, corr_daq_energy, rm_pileup)
     x = ((missing, missing), 0)
-    for i=eachindex(files)
-        x = _vcat!(x, _read_file(files[i]))
+    for file in files
+        x = _vcat!(x, 
+        read_and_merge_filtered_file(file, 
+            name, hv; idx_c, corr_daq_energy, rm_pileup))
     end
-    println("$(x[2]) / $(length(files)) successful")
-    fileout = build_output_fname(files, destdir, x[2])
-    LHDataStore(f -> write_all(f, name, x[1]), fileout, "w")
+    verbose && println("$(x[2]) / $(length(files)) successful")
+    fileout = build_output_prepocessed_file_name(files, destdir, x[2])
+    LHDataStore(f -> write_preprocessed_file(f, name, x[1]), fileout, "w")
     chmod(fileout, 0o774)
 end
 
