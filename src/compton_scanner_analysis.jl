@@ -217,9 +217,9 @@ l1::Int=300, ew = 8.0u"keV", baseline_samples::Int = 500, verbose::Bool = true)
     superpulses_Cs = []
     z_Cs = collect(0:2:40)
     mask = zeros(Bool, length(z_Cs))
+    if verbose prog = ProgressUnknown("Reconstructing superpulses at z =") end
     for i=eachindex(z_Cs)
-        verbose && print("\e[0;0H\e[2J")
-        verbose && println("$i/$(length(z_Cs))  z = $(z_Cs[i])")
+        verbose && ProgressMeter.update!(p, i)
         idxz2 = findall(z -> abs(z - z_Cs[i]) < Δz, z2h)
         length(idxz2) == 0 && break
         # TODO check usefulness of is_singlesite

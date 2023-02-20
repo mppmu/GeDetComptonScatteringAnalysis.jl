@@ -13,6 +13,7 @@ using DSP
 using IntervalSets
 using LegendHDF5IO
 using LsqFit
+using ProgressMeter
 using RadiationSpectra
 using RecipesBase
 using Rotations

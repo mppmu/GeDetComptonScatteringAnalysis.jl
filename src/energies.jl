@@ -42,13 +42,15 @@ DAQ_energy from the core. `idx_c` denotes the index of the core segment,
 `nseg` the number of segments ,`max` the maximal raw value to 
 consider in the histogram and `name` the name of the table
 """
-function get_econv(sourcedir; idx_c=1, bsize=1000, max=1_500_000, name="segBEGe")::typeof(Cs_energy)
+function get_econv(sourcedir; idx_c=1, bsize=1000, max=1_500_000, name="segBEGe", verbose::Bool = true)::typeof(Cs_energy)
     E = Int32[]
     files = readdir(sourcedir)
     N = length(files)
+    if verbose prog = Progress(N, "Reading $(N) file" * (N != 1 ? "s" : ""), 1) end
     for i=Base.OneTo(N)
-        print("\e[0;0H\e[2J")
-        println("file $i/$N")
+        verbose && ProgressMeter.update!(prog, i)
+        #print("\e[0;0H\e[2J")
+        #println("file $i/$N")
         try
             lhd = LHDataStore(joinpath(sourcedir, files[i]))
             core_e = get_daqe(lhd[name], idx_c)
@@ -56,6 +58,7 @@ function get_econv(sourcedir; idx_c=1, bsize=1000, max=1_500_000, name="segBEGe"
         catch
             nothing
         end
+        verbose && next!(prog)
     end
     h = fit(Histogram{Float64}, E, (1:bsize:max))
     _, peakpos = RadiationSpectra.peakfinder(h)
