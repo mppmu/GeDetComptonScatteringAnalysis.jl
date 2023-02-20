@@ -119,25 +119,25 @@ end
 end
 
 function getz(file; name="segBEGe", center=cntr, ew = 8.0u"keV", Δz=2)
-    icpc, czt = LHDataStore(file) do lhd
+    det, czt = LHDataStore(file) do lhd
         lhd[name][:], lhd["czt"][:]
     end
     hv = getV(file)
-    ec = econv[hv]
-    icpc_e = ec*icpc.DAQ_energy * u"keV"
+    ec = econv[hv] * u"keV"
+    det_e = ec*det.DAQ_energy
     czt_e = uconvert.(u"keV", (sum.(czt.hit_edep)))
-    idx = intersect(findall(x -> abs(x - Cs_energy) ≤ ew, icpc_e+czt_e), 
-                    findall(x -> 250.0u"keV" ≤ x ≤ 440.0u"keV", icpc_e))
-    icpc_hits = view(icpc, idx)
+    idx = intersect(findall(x -> abs(x - Cs_energy) ≤ ew, det_e+czt_e), 
+                    findall(x -> 250.0u"keV" ≤ x ≤ 440.0u"keV", det_e))
+    det_hits = view(det, idx)
     czt_hits = view(czt, idx)
     R = center - getR(file)
 
     @info "Reconstructing Z from two hit events at R = $R"
     idx_2h = findall(is_valid_2hit, czt_hits)
     czt_2hit = view(czt_hits, idx_2h)
-    icpc_2hit = view(icpc_hits, idx_2h)
+    det_2hit = view(det_hits, idx_2h)
     # TODO: resolve allocation issues by passing fixed empty array
-    zrec2hit = get_z_from_2_hit_events.(icpc_2hit, czt_2hit, R; Δz = Δz, hv)
+    zrec2hit = get_z_from_2_hit_events.(det_2hit, czt_2hit, R; Δz = Δz, hv)
     idx_val_1 = findall(x -> x[1] == 1, zrec2hit)
     idx_val_2 = findall(x -> x[1] == 2, zrec2hit)
     idx_val = vcat(idx_val_1, idx_val_2)
@@ -155,7 +155,7 @@ end
 loop through all files in `sourcedir` and return for each file the radius, 
 measuretime and reconstructed z's
 """
-function get_all_z(sourcedir; name="segBEGe", center=cntr, ew = 8.0u"keV")
+function get_all_z(sourcedir::AbstractString; name::AbstractString="segBEGe", center=cntr, ew = 8.0u"keV")
     ffiles = filter(x -> endswith(x, "preprocessed.lh5"), readdir(sourcedir))
     R = zeros(length(ffiles))
     mtime = zeros(length(ffiles))
@@ -169,22 +169,20 @@ function get_all_z(sourcedir; name="segBEGe", center=cntr, ew = 8.0u"keV")
     mtime, R, z
 end
 
-function get_z_and_waveforms(file, hv; i=1, name="segBEGe", ew= 8.0u"keV", Δz=1)
+function get_z_and_waveforms(file::AbstractString, hv; center = cntr, idx_c=1, name="segBEGe", ew= 8.0u"keV", Δz=1)
     det, czt = LHDataStore(file) do lhd
         lhd[name][:], lhd["czt"][:]
     end
-    det = begin
-        idx = findall(x -> x == i, det.chid)
-        det[idx]
-    end
-    ec = econv[hv]
-    icpc_e = ec*det.DAQ_energy * u"keV"
+    det = det[findall(x -> x == idx_c, det.chid)]
+    @assert length(det) == length(czt) "$name and czt do not have the same number of events"
+    ec = econv[hv] * u"keV"
+    det_e = ec*det.DAQ_energy
     czt_e = uconvert.(u"keV", (sum.(czt.hit_edep)))
-    idx = intersect(findall(x -> abs(x - Cs_energy) ≤ ew, icpc_e+czt_e), 
-                    findall(x -> 250.0u"keV" ≤ x ≤ 440.0u"keV", icpc_e))
+    idx = intersect(findall(x -> abs(x - Cs_energy) ≤ ew, det_e+czt_e), 
+                    findall(x -> 250.0u"keV" ≤ x ≤ 440.0u"keV", det_e))
     det_hits = view(det, idx)
     czt_hits = view(czt, idx)
-    R = cntr - getR(file)
+    R = center - getR(file)
 
     # @info "Reconstructing Z from two hit events at R = $R"
     idx_2h = findall(is_valid_2hit, czt_hits);
@@ -213,15 +211,15 @@ two hit and one hit validated hits.
 """
 function reconstruct_at_radius(file::AbstractString, hv::Float64; Δz::Int=1, 
 window::Tuple{Int, Int}=(500, 500), τ::Float64=51.8, χ2_max::Float64=3., 
-l1::Int=300, ew = 8.0u"keV", baseline_samples::Int = 500)
+l1::Int=300, ew = 8.0u"keV", baseline_samples::Int = 500, verbose::Bool = true)
     z2h, z1h, wf2h, wf1h = get_z_and_waveforms(file, hv, ew = ew)
     wlength = sum(window)+1
     superpulses_Cs = []
     z_Cs = collect(0:2:40)
     mask = zeros(Bool, length(z_Cs))
     for i=eachindex(z_Cs)
-        print("\e[0;0H\e[2J")
-        println("$i/$(length(z_Cs))  z = $(z_Cs[i])")
+        verbose && print("\e[0;0H\e[2J")
+        verbose && println("$i/$(length(z_Cs))  z = $(z_Cs[i])")
         idxz2 = findall(z -> abs(z - z_Cs[i]) < Δz, z2h)
         length(idxz2) == 0 && break
         # TODO check usefulness of is_singlesite
