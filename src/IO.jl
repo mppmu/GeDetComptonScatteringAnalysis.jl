@@ -46,7 +46,7 @@ function read_filtered_file(f::AbstractString, name::AbstractString)
     end
 end
 
-function build_output_prepocessed_file_name(files::Vector{String}, destdir::AbstractString, n::Int)::String
+function build_preprocessed_file_name(files::Vector{String}, destdir::AbstractString, n::Int)::String
     destdir = joinpath(destdir, "")
     fpos, ftime = split(basename(files[end]), "measuretime_")
     fmtime, fdate = split(ftime, "sec")

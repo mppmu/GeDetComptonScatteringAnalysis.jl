@@ -48,7 +48,7 @@ function stack_and_merge_at_z(
             name, hv; idx_c, corr_daq_energy, rm_pileup))
     end
     verbose && println("$(x[2]) / $(length(files)) successful")
-    fileout = build_output_prepocessed_file_name(files, destdir, x[2])
+    fileout = build_preprocessed_file_name(files, destdir, x[2])
     LHDataStore(f -> write_preprocessed_file(f, name, x[1]), fileout, "w")
     chmod(fileout, 0o774)
     nothing
