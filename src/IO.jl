@@ -1,18 +1,22 @@
 # This file is a part of GeDetComptonScatteringAnalysis.jl, licensed under the MIT License (MIT).
 
-const regR = "R_(?<R>\\d+?\\.\\d+)mm"
-const regPhi = "_Phi_(?<Phi>\\d+?\\.\\d+)deg"
-const regT = "_T_(?<T>\\d+?\\.\\d+)K"
-const regZ = "_Z_(?<Z>\\d+?\\.\\d+)mm"
-const regM = "_measuretime_(?<time>\\d+?)sec"
-const regV = "HV_(?<voltage>[\\d\\.]+?)V"
+const regR = r"(?<=R_)\d+(?:\.\d+){0,1}(?=mm)"
+const regPhi = r"(?<=Phi_)\d+(?:\.\d+){0,1}(?=deg)"
+const regT = r"(?<=T_)\d+(?:\.\d+){0,1}(?=K)"
+const regZ = r"(?<=Z_)\d+(?:\.\d+){0,1}(?=mm)"
+const regM = r"(?<=measuretime_)\d+(?:\.\d+){0,1}(?=sec)"
+const regV = r"(?<=HV_)\d+(?:\.\d+){0,1}(?=V)"
 
-@inline getR(s::AbstractString)   = parse(Float64, match(Regex(regR), s).captures[1])
-@inline getPhi(s::AbstractString) = parse(Float64, match(Regex(regPhi), s).captures[1])
-@inline getT(s::AbstractString)   = parse(Float64, match(Regex(regT), s).captures[1])
-@inline getZ(s::AbstractString)   = parse(Float64, match(Regex(regZ), s).captures[1])
-@inline getM(s::AbstractString)   = parse(Float64, match(Regex(regM), s).captures[1])
-@inline getV(s::AbstractString)   = parse(Float64, match(Regex(regV), s).captures[1])
+_parse(m::RegexMatch) = parse(Float64, m.match)
+_parse(::Nothing) = NaN
+_match(r::Regex, s::AbstractString)::Float64 = _parse(match(r, s))
+
+@inline getR(s::AbstractString)   = _match(regR, s)
+@inline getPhi(s::AbstractString) = _match(regPhi, s)
+@inline getT(s::AbstractString)   = _match(regT, s)
+@inline getZ(s::AbstractString)   = _match(regZ, s)
+@inline getM(s::AbstractString)   = _match(regM, s)
+@inline getV(s::AbstractString)   = _match(regV, s)
 
 ############################
 # filtered -> preprocessed #
