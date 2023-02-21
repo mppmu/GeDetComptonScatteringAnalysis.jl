@@ -1,6 +1,6 @@
 in_mm(x::Number) = ustrip(uconvert(u"mm", x))
 
-function get_z_from_2_hit_events(s::NamedTuple, c::NamedTuple, R::Number; Δz = 2, hv)
+function get_z_from_2_hit_events(s::NamedTuple, c::NamedTuple, R::Number; Δz = 2, hv)::Tuple{Int, Float64, Float64}
 
     #if econv*s.DAQ_energy < 250
         #return (false, -1)
@@ -27,7 +27,7 @@ function get_z_from_2_hit_events(s::NamedTuple, c::NamedTuple, R::Number; Δz = 
     end
 
     #else discard them
-    return (false, zθ)
+    return (0, NaN, NaN)
 end
 
 
@@ -113,13 +113,14 @@ function swap_CZT_hits(c::NamedTuple)
         )
 end
 
-@inline function is_valid_2hit(evt)
+@inline function is_valid_2hit(evt::NamedTuple)
     length(evt.hit_x) == 2 && hypot(evt.hit_x[2] - evt.hit_x[1],
         evt.hit_y[2] - evt.hit_y[1],
         evt.hit_z[2] - evt.hit_z[1]) > 3.0u"mm"
 end
 
-function getz(file; name="segBEGe", center=cntr, ew = 8.0u"keV", Δz=2)
+function getz(file::AbstractString; name::AbstractString = "segBEGe", 
+    center::Float64 = cntr, ew = 8.0u"keV", Δz=2)
     det, czt = read_preprocessed_file(file, name)
     hv = getV(file)
     ec = econv[hv] * u"keV"
