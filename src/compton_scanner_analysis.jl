@@ -46,31 +46,32 @@ end
 
 
 function get_z_from_camera(c::NamedTuple, R)
-    x_global, y_global, z_global = get_global_cam_positions(c)
-    α = compton_angle(sum(c.hit_edep), c.hit_edep[2])
-    zα = []
+    let x = c.hit_x, y = c.hit_y, z = c.hit_z
+        α = compton_angle(sum(c.hit_edep), c.hit_edep[2])
+        zα = []
 
-    if !(isnan(α))
-        try
-            #define the cone and get intersections z1,z2 with the beam axis
-            camhit1 = [x_global.cam[1], y_global.cam[1], z_global.cam[1]]
-            camhit2 = [x_global.cam[2], y_global.cam[2], z_global.cam[2]]
-            cone = Cone(in_mm.(camhit1), in_mm.(camhit1-camhit2), α)
-            z1, z2 = get_possible_z_from_camera(cone, R)
+        if !(isnan(α))
+            try
+                #define the cone and get intersections z1,z2 with the beam axis
+                camhit1 = [x[1], y[1], z[1]]
+                camhit2 = [x[2], y[2], z[2]]
+                cone = Cone(in_mm.(camhit1), in_mm.(camhit1-camhit2), α)
+                z1, z2 = get_possible_z_from_camera(cone, R)
 
-            #information about sign of cos(α) is lost when calculating zα
-            #so check whether the actual vectors return α (keep) or π-α (discard)
-            if validate_z(z1,cone,R)
-                push!(zα,z1)
-            elseif validate_z(z2,cone,R)
-                push!(zα,z2)
+                #information about sign of cos(α) is lost when calculating zα
+                #so check whether the actual vectors return α (keep) or π-α (discard)
+                if validate_z(z1,cone,R)
+                    push!(zα,z1)
+                elseif validate_z(z2,cone,R)
+                    push!(zα,z2)
+                end
+            catch e
+                #this catches all imaginary solutions in get_possible_z_from_camera
+                if !(e isa DomainError) error(e) end
             end
-        catch e
-            #this catches all imaginary solutions in get_possible_z_from_camera
-            if !(e isa DomainError) error(e) end
         end
+        return zα
     end
-    return zα
 end
 
 

@@ -6,15 +6,6 @@ const α2 = 45.3695 * π/180
 const δ2 = 1000u"μm" .* [64.1275058422767, -31.859041946909453, 0.4]
 const cntr = 81.76361317572471
 
-function get_global_cam_positions(c::NamedTuple)
-    #transform local CZT coordinates to global coordinate system
-    x_global = (cam = c.hit_x,)
-    y_global = (cam = c.hit_y,)
-    z_global = (cam = c.hit_z,)
-    return x_global, y_global, z_global
-end
-
-
 # lowest allocation method
 function transform_czt2_coords!(X::Vector{T}, Y::Vector{T}, Z::Vector{T}, 
 motor_z::U)::Nothing where {T, U}
