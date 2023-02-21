@@ -52,12 +52,12 @@ function merge_data(::Table, czt::Table, czt2::Missing, z::Float64)
     czt
 end
 
-function merge_data(ge, czt, czt2, z)
+function merge_data(det, czt, czt2, z)
     # TODO: maybe consider doing transformation directly in main loop here
     # instead of seperately for each camera
     transform_czt1_coords!(czt.hit_x.data, czt.hit_y.data, czt.hit_z.data, z)
     transform_czt2_coords!(czt2.hit_x.data, czt2.hit_y.data, czt2.hit_z.data, z)
-    N, N1, N2 = length(ge), length(czt), length(czt2)
+    N, N1, N2 = length(det), length(czt), length(czt2)
     total_cam_hits = length(czt.hit_x.data) + length(czt2.hit_x.data)
     # simple Vectors
     evt_nhits = Vector{Int32}(undef, N)
@@ -72,10 +72,11 @@ function merge_data(ge, czt, czt2, z)
     z = Vector{eltype(czt.hit_z.data)}(undef, total_cam_hits)
 
     i1, i2, ep = 1, 1, 0
-    for i=eachindex(ge)
+    for i=eachindex(det)
         elem_ptr[i] = ep + 1
         evt_no_cam1, evt_no_cam2 = czt.evt_no[i1], czt2.evt_no[i2]
-        if evt_no_cam1 == evt_no_cam2 == ge.evt_no[i]
+        # events with hits in both cameras
+        if evt_no_cam1 == evt_no_cam2 == det.evt_no[i]
             evt_nhits[i] = czt.evt_nhits[i1] + czt2.evt_nhits[i2]
             evt_t[i] = min(czt.evt_t[i1], czt2.evt_t[i2])
             for n=Base.OneTo(czt.evt_nhits[i1])
@@ -98,7 +99,8 @@ function merge_data(ge, czt, czt2, z)
             ep += czt2.evt_nhits[i2]
             i1 += 1
             i2 += 1
-        elseif  evt_no_cam1 == ge.evt_no[i]
+        # events with hits in only camera 1
+        elseif evt_no_cam1 == det.evt_no[i]
             evt_nhits[i] = czt.evt_nhits[i1]
             evt_t[i] = czt.evt_t[i1]
             for n=Base.OneTo(czt.evt_nhits[i1])
@@ -111,7 +113,8 @@ function merge_data(ge, czt, czt2, z)
             end
             ep += czt.evt_nhits[i1]
             i1 += 1
-        else
+        # events with hits in only camera 2
+        elseif evt_no_cam2 == det.evt_no[i]
             evt_nhits[i] = czt2.evt_nhits[i2]
             evt_t[i] = czt2.evt_t[i2]
             for n=Base.OneTo(czt2.evt_nhits[i2])
@@ -124,13 +127,18 @@ function merge_data(ge, czt, czt2, z)
             end
             ep += czt2.evt_nhits[i2]
             i2 += 1
+        # events with no hits in the cameras
+        # this should not happen, as the filtered files should
+        # only contain events with hits in the detector AND the camera
+        else 
+            @warn "Event with event number $(det.evt_no[i]) in the detector has no counterpart in the cameras."
         end
         i1 > N1 && (i1 = N1)            # TODO: maybe get rid of these?
         i2 > N2 && (i2 = N2)
     end
     elem_ptr[end] = total_cam_hits + 1
     Table(
-        evt_no = ge.evt_no,
+        evt_no = det.evt_no,
         evt_nhits = evt_nhits,
         evt_t = evt_t,
         hit_detno = VectorOfVectors(detno, elem_ptr, no_consistency_checks),
