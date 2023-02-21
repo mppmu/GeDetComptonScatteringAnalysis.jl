@@ -32,6 +32,7 @@ function DAQ_energy_corr(wf::Vector{UInt16}, daqe::T)::T where {T <: AbstractFlo
     end
 end   
 
+baseline_slope(wf::Vector{UInt16}) = mean(view(wf, 1400:1500)) - mean(view(wf, 1:100))
 par(x::T, p::Vector{T}) where {T <: AbstractFloat} = p[1] + p[2] * x + p[3] * x^2
 
 

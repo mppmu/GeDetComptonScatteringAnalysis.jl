@@ -1,4 +1,4 @@
-baseline_slope(wf) = mean(view(wf, 1400:1500)) - mean(view(wf, 1:100))
+# This file is a part of GeDetComptonScatteringAnalysis.jl, licensed under the MIT License (MIT).
 
 function is_not_pileup(wf, cut)
     try
