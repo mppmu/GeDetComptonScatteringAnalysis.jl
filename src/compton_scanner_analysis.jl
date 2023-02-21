@@ -119,7 +119,7 @@ end
         evt.hit_z[2] - evt.hit_z[1]) > 3.0u"mm"
 end
 
-function getz(file::AbstractString; name::AbstractString = "segBEGe", 
+function reconstruct_z(file::AbstractString; name::AbstractString = "segBEGe", 
     center::Float64 = cntr, ew = 8.0u"keV", Δz=2)
     det, czt = read_preprocessed_file(file, name)
     hv = getV(file)
@@ -163,7 +163,7 @@ function get_all_z(sourcedir::AbstractString; name::AbstractString="segBEGe", ce
     for i=eachindex(ffiles)
         R[i] = getR(ffiles[i])
         mtime[i] = getM(ffiles[i])
-        rec_zs = getz(joinpath(sourcedir, ffiles[i]); name, center, ew = ew)
+        rec_zs = reconstruct_z(joinpath(sourcedir, ffiles[i]); name, center, ew = ew)
         push!(z, rec_zs[:, 1])
     end
     mtime, R, z
