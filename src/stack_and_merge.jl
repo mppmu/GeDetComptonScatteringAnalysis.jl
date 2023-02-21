@@ -13,7 +13,10 @@ _vcat!(x::Tuple{Tuple{Table, Table}, Int}, y::Tuple{Table, Table}) =
     (_vcat!(x[1], y), x[2] + 1)
 
 
-function read_and_merge_filtered_file(file, name, hv; idx_c=1, corr_daq_energy=false, rm_pileup=false)
+function read_and_merge_filtered_file(
+        file::AbstractString, name::AbstractString, hv::Number; 
+        idx_c::Int = 1, corr_daq_energy::Bool = false, rm_pileup::Bool = false
+    )
     try
         det, czt, czt2 = read_filtered_file(file, name)
         nseg = length(unique(det.chid))
@@ -30,11 +33,14 @@ function read_and_merge_filtered_file(file, name, hv; idx_c=1, corr_daq_energy=f
     end
 end
 
-function stack_and_merge_at_z(sourcedir::String, destdir::String, r, phi, 
-        z, hv, name; idx_c=1, hv_in_filename=false, 
-        corr_daq_energy=false, rm_pileup=false, n_max_files=-1, verbose::Bool = true)
-    files = fetch_relevant_filtered_files(sourcedir, phi, z, r, hv_in_filename, 
-        n_max_files)
+function stack_and_merge_at_z(
+        sourcedir::AbstractString, destdir::AbstractString, 
+        r::Number, phi::Number, z::Number, hv::Number, name::AbstractString; 
+        idx_c::Int = 1, corr_daq_energy::Bool = false, rm_pileup::Bool = false,
+        hv_in_filename::Bool = false, n_max_files::Int = -1, verbose::Bool = true
+    )::Nothing 
+
+    files = fetch_relevant_filtered_files(sourcedir, phi, z, r, hv_in_filename, n_max_files)
     x = ((missing, missing), 0)
     for file in files
         x = _vcat!(x, 
@@ -45,4 +51,5 @@ function stack_and_merge_at_z(sourcedir::String, destdir::String, r, phi,
     fileout = build_output_prepocessed_file_name(files, destdir, x[2])
     LHDataStore(f -> write_preprocessed_file(f, name, x[1]), fileout, "w")
     chmod(fileout, 0o774)
+    nothing
 end
