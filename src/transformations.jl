@@ -31,23 +31,26 @@ motor_z::U)::Nothing where {T, U}
     nothing
 end
 
-function merge_cameras_and_transform_coordinates(::Table, czt::Table, czt2::Missing, z::Float64)
+function merge_cameras_and_transform_coordinates(::Table, czt::TAB, ::Missing, z::Float64)::TAB where {TAB <: Table}
     transform_czt1_coords!(czt.hit_x.data, czt.hit_y.data, czt.hit_z.data, z)
     czt
 end
 
-function merge_cameras_and_transform_coordinates(det, czt, czt2, z)
+function merge_cameras_and_transform_coordinates(det::Table, czt::TAB, czt2::TAB, cam_z::Float64)::TAB where {TAB <: Table}
     # TODO: maybe consider doing transformation directly in main loop here
     # instead of seperately for each camera
-    transform_czt1_coords!(czt.hit_x.data, czt.hit_y.data, czt.hit_z.data, z)
-    transform_czt2_coords!(czt2.hit_x.data, czt2.hit_y.data, czt2.hit_z.data, z)
-    N, N1, N2 = length(det), length(czt), length(czt2)
-    total_cam_hits = length(czt.hit_x.data) + length(czt2.hit_x.data)
+    transform_czt1_coords!(czt.hit_x.data, czt.hit_y.data, czt.hit_z.data, cam_z)
+    transform_czt2_coords!(czt2.hit_x.data, czt2.hit_y.data, czt2.hit_z.data, cam_z)
+    N::Int, N1::Int, N2::Int = length(det), length(czt), length(czt2)
+    total_cam_hits::Int = length(czt.hit_x.data) + length(czt2.hit_x.data)
+
     # simple Vectors
     evt_nhits = Vector{Int32}(undef, N)
     evt_t = Vector{eltype(czt.evt_t)}(undef, N)
-    elem_ptr = Vector{Int32}(undef, N+1)
+    evt_issync::BitVector = falses(N)
+
     # data for VectorOfVectors
+    elem_ptr = Vector{Int64}(undef, N+1)
     detno = Vector{Int32}(undef, total_cam_hits)
     edep = Vector{eltype(czt.hit_edep.data)}(undef, total_cam_hits)
     t = Vector{eltype(czt.hit_t.data)}(undef, total_cam_hits)
@@ -123,13 +126,14 @@ function merge_cameras_and_transform_coordinates(det, czt, czt2, z)
     elem_ptr[end] = total_cam_hits + 1
     Table(
         evt_no = det.evt_no,
-        evt_nhits = evt_nhits,
         evt_t = evt_t,
-        hit_detno = VectorOfVectors(detno, elem_ptr, no_consistency_checks),
+        evt_nhits = evt_nhits,
+        evt_issync = evt_issync,
         hit_edep = VectorOfVectors(edep, elem_ptr, no_consistency_checks),
         hit_t = VectorOfVectors(t, elem_ptr, no_consistency_checks),
+        hit_detno = VectorOfVectors(detno, elem_ptr, no_consistency_checks),
         hit_x = VectorOfVectors(x, elem_ptr, no_consistency_checks),
         hit_y = VectorOfVectors(y, elem_ptr, no_consistency_checks),
         hit_z = VectorOfVectors(z, elem_ptr, no_consistency_checks),
-        )
+    )
 end
