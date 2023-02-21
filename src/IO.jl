@@ -40,7 +40,8 @@ function fetch_relevant_filtered_files(
 end
 
 function is_filtered_file(f::AbstractString)::Bool
-    return (endswith(f, "-filtered.h5") || throw(ArgumentError, "Expected filtered file as input.")) && isfile(f)
+    return (endswith(f, "-filtered.h5") || throw(ArgumentError, "Expected filtered file as input.")) && 
+           (isfile(f) || throw(ArgumentError, "File does not exist (missing path to file?)"))
 end
 
 function read_filtered_file(f::AbstractString, name::AbstractString)
@@ -71,7 +72,8 @@ end
 # preprocessed -> results  #
 ############################
 function is_preprocessed_file(f::AbstractString)::Bool 
-    return (endswith(f, "-preprocessed.lh5") || throw(ArgumentError, "Expected prepocessed file as input.")) && isfile(f)
+    return (endswith(f, "-preprocessed.lh5") || throw(ArgumentError, "Expected prepocessed file as input.")) &&
+           (isfile(f) || throw(ArgumentError, "File does not exist (missing path to file?)"))
 end
 
 function read_preprocessed_file(f::AbstractString, name::AbstractString)::Tuple{Table, Table}
