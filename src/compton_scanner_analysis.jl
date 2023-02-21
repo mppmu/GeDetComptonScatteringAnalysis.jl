@@ -207,52 +207,66 @@ Given a `file` and a specified voltage `hv`, build the superpulses from
 two hit and one hit validated hits.  
 """
 function reconstruct_at_radius(file::AbstractString, hv::Float64; Δz::Int=1, 
-window::Tuple{Int, Int}=(500, 500), τ::Float64=51.8, χ2_max::Float64=3., 
-l1::Int=300, ew = 8.0u"keV", baseline_samples::Int = 500, verbose::Bool = true)
-    z2h, z1h, wf2h, wf1h = get_z_and_waveforms(file, hv, ew = ew)
+    name::AbstractString = "segBEGe", idx_c::Int = 1,
+    window::Tuple{Int, Int}=(500, 500), τ::Float64=51.8, χ2_max::Float64=3.,
+    l1::Int=300, ew = 8.0u"keV", baseline_samples::Int = 500, verbose::Bool = true)
+    
+    z2h, z1h, wf2h, wf1h = get_z_and_waveforms(file, hv, name = name, idx_c = idx_c, ew = ew)
     wlength = sum(window)+1
-    superpulses_Cs = []
-    z_Cs = collect(0:2:40)
+    z_Cs = collect(0:2*Δz:40)
+    superpulses_Cs = [zeros(Float64, wlength) for _ in eachindex(z_Cs)]
     mask = zeros(Bool, length(z_Cs))
     if verbose prog = ProgressUnknown("Reconstructing superpulses at z =") end
     for i=eachindex(z_Cs)
         verbose && ProgressMeter.update!(prog, i)
+
+        # select all two-hit events in the given z-bin
         idxz2 = findall(z -> abs(z - z_Cs[i]) < Δz, z2h)
-        length(idxz2) == 0 && break
-        # TODO check usefulness of is_singlesite
+        length(idxz2) == 0 && continue
+
+        # correct the pulses for baseline and τ, and time-align them
+        # TODO check usefulness of is_singlesite for two-hit events
         wf2h_at_z = baseline_corr.(wf2h[idxz2]; m=baseline_samples)
         wf2h_at_z = decay_correction.(wf2h_at_z, exp(-0.004/τ))
         wfs_aligned = time_align.(wf2h_at_z; p=0.5, window=window, l=l1)
         filter!(wfm -> length(wfm) == wlength, wfs_aligned)
-        length(wfs_aligned) == 0 && break
+        length(wfs_aligned) == 0 && continue
 
+        # determine a two-hit superpulse and discard obvious outliers
         sp = normalizewf(wfs_aligned; l=l1)
         χ2 = [chi_sq_wfs(normalizewf(wfm; l=l1), sp) for wfm=wfs_aligned]
         chi_2h = findall(x -> x < χ2_max, χ2)
-        length(chi_2h) == 0 && break
+        length(chi_2h) == 0 && continue
 
-        # new superpulse from 2hit waveforms which passed first χ2
+        # create superpulse from two-hit waveforms which passed the first χ2 cut
         sp = normalizewf(wfs_aligned[chi_2h]; l=l1)
+
+        # select all one-hit events in the given z-bin
         idxz1 = findall(z -> abs(z - z_Cs[i]) < Δz, z1h)
+
+        # correct the pulses for baseline and τ, normalize and time-align them
         wfs1_at_z = baseline_corr.(wf1h[idxz1]; m=baseline_samples)
         wfs1_at_z = decay_correction.(wfs1_at_z, exp(-0.004/τ))
         wfs1_aligned = time_align.(wfs1_at_z; p=0.5, window=window, l=l1)
         filter!(wfm -> length(wfm) == wlength, wfs1_aligned)
         if length(wfs1_aligned) == 0
-            append!(superpulses_Cs, [sp])
+            superpulses_Cs[i] = sp
             mask[i] = true
-            break
+            continue
         end
 
+        # select all one-hit events with χ2 < χ2_max compared to the two-hit superpulse
         χ1h = [chi_sq_wfs(normalizewf(wfm; l=l1), sp) for wfm=wfs1_aligned]
         chi_1h = findall(χ -> χ < χ2_max, χ1h)
         sp = normalizewf(vcat(wfs_aligned[chi_2h], wfs1_aligned[chi_1h]); l=l1)
-        append!(superpulses_Cs, [sp])
+        superpulses_Cs[i] = sp
         mask[i] = true
     end
     superpulses_Cs, mask, z_Cs
 end
 
+
+# TODO: replace pulse-shape processing functions by functions from RadiationDetectorDSP.jl
 function normalizewf(x; l::Int=300)
     max = mean(x[end-l:end])
     x/max
