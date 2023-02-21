@@ -32,6 +32,7 @@ export get_daqe
 export Cone
 
 
+include("types.jl")
 include("functions.jl")
 include("cone.jl")
 include("compton_scanner_analysis.jl")

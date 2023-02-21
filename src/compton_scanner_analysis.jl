@@ -1,13 +1,13 @@
 in_mm(x::Number) = ustrip(uconvert(u"mm", x))
 
-function get_z_from_2_hit_events(s::NamedTuple, c::NamedTuple, R::Number; Δz = 2, hv)::Tuple{Int, Float64, Float64}
+function get_z_from_2_hit_events(det::detTuple, czt::cztTuple, R::Number; Δz = 2, hv)::Tuple{Int, Float64, Float64}
 
-    #if econv*s.DAQ_energy < 250
+    #if econv*det.DAQ_energy < 250
         #return (false, -1)
     #end
     #get z coordinates for scatter point in segBEGe
-    zθ = get_z_from_energies(s, c, R, hv)
-    zα = get_z_from_camera(c, R)
+    zθ = get_z_from_energies(det, czt, R, hv)
+    zα = get_z_from_camera(czt, R)
 
     #compare them: if they agree within Δz, keep them
     for z in zα 
@@ -17,9 +17,9 @@ function get_z_from_2_hit_events(s::NamedTuple, c::NamedTuple, R::Number; Δz = 
     end
     
     #swaphits and try again
-    cs = swap_CZT_hits(c)
-    zθ = get_z_from_energies(s, cs, R, hv)
-    zα = get_z_from_camera(cs, R)
+    czts = swap_CZT_hits(czt)
+    zθ = get_z_from_energies(det, czts, R, hv)
+    zα = get_z_from_camera(czts, R)
     for z in zα 
         if abs(z - zθ) < Δz
             return (2, zθ, z)
@@ -31,23 +31,23 @@ function get_z_from_2_hit_events(s::NamedTuple, c::NamedTuple, R::Number; Δz = 
 end
 
 
-function get_z_from_energies(s::NamedTuple, c::NamedTuple, R,hv)
-    T = typeof(1.0*unit(eltype(c.hit_x)))
+function get_z_from_energies(det::detTuple, czt::cztTuple, R::Float64, hv::Float64)::Float64
+    T = typeof(1.0*unit(eltype(czt.hit_x)))
     # TODO: add flag if we want to rely more on camera or DAQ_energies?
     # if ge not depleted -> worse energy resolution -> rely more on camera 
     # energy resolution
     # DAQ_energies
     # cf = econv[hv]
-    # θ = compton_angle(cf*s.DAQ_energy*u"keV"+sum(c.hit_edep), sum(c.hit_edep))
+    # θ = compton_angle(cf*det.DAQ_energy*u"keV"+sum(czt.hit_edep), sum(czt.hit_edep))
     # CZT energies
-    θ = compton_angle(Cs_energy, sum(c.hit_edep)) 
-    in_mm(T(c.hit_z[1]) + hypot(T(c.hit_x[1]), T(c.hit_y[1]) - R*u"mm") * cot(θ))
+    θ = compton_angle(Cs_energy, sum(czt.hit_edep)) 
+    in_mm(T(czt.hit_z[1]) + hypot(T(czt.hit_x[1]), T(czt.hit_y[1] - R*u"mm")) * cot(θ))
 end
 
 
-function get_z_from_camera(c::NamedTuple, R)
-    let x = c.hit_x, y = c.hit_y, z = c.hit_z
-        α = compton_angle(sum(c.hit_edep), c.hit_edep[2])
+function get_z_from_camera(czt::cztTuple, R::Float64)
+    let x = czt.hit_x, y = czt.hit_y, z = czt.hit_z
+        α = compton_angle(sum(czt.hit_edep), czt.hit_edep[2])
         zα = []
 
         if !(isnan(α))
@@ -104,19 +104,21 @@ function validate_z(z::AbstractFloat, cone::Cone, R::AbstractFloat; Δα::Number
     return abs(cone.α - αnew) < Δα
 end
 
-function swap_CZT_hits(c::NamedTuple)
-    return (
-        hit_x = [c.hit_x[2], c.hit_x[1]], 
-        hit_y = [c.hit_y[2], c.hit_y[1]], 
-        hit_z = [c.hit_z[2], c.hit_z[1]], 
-        hit_edep = [c.hit_edep[2], c.hit_edep[1]]
-        )
+function swap_CZT_hits(czt_old::cztTuple)::cztTuple
+    # TODO: check if the deepcopy is needed or whether
+    # we can reverse the Vectors in the original cztTuple
+    czt = deepcopy(czt_old)
+    reverse!(czt.hit_x)
+    reverse!(czt.hit_y)
+    reverse!(czt.hit_z)
+    reverse!(czt.hit_edep)
+    return czt
 end
 
-@inline function is_valid_2hit(evt::NamedTuple)
-    length(evt.hit_x) == 2 && hypot(evt.hit_x[2] - evt.hit_x[1],
-        evt.hit_y[2] - evt.hit_y[1],
-        evt.hit_z[2] - evt.hit_z[1]) > 3.0u"mm"
+@inline function is_valid_2hit(czt::cztTuple)::Bool
+    length(czt.hit_x) == 2 && hypot(czt.hit_x[2] - czt.hit_x[1],
+        czt.hit_y[2] - czt.hit_y[1],
+        czt.hit_z[2] - czt.hit_z[1]) > 3.0u"mm"
 end
 
 function reconstruct_z(file::AbstractString; name::AbstractString = "segBEGe", 
@@ -183,7 +185,7 @@ function get_z_and_waveforms(file::AbstractString, hv; center = cntr, idx_c=1, n
     R = center - getR(file)
 
     # @info "Reconstructing Z from two hit events at R = $R"
-    idx_2h = findall(is_valid_2hit, czt_hits);
+    idx_2h = findall(is_valid_2hit, czt_hits)
     idx_1h = findall(x -> x == 1, czt_hits.evt_nhits)
     det_1hit = view(det_hits, idx_1h)
     czt_1hit = view(czt_hits, idx_1h)

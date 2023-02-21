@@ -8,7 +8,7 @@ const cntr = 81.76361317572471
 
 # lowest allocation method
 function transform_czt2_coords!(X::Vector{T}, Y::Vector{T}, Z::Vector{T}, 
-motor_z::U)::Nothing where {T, U}
+motor_z::U)::Nothing where {T, U <: AbstractFloat}
     t = SVector{3}(1000u"μm" .* (U(0), U(0), motor_z) .+ δ .+ δ2)
     R = RotZ(-α2)*RotY(π)
     @inbounds for i=eachindex(X)
@@ -20,7 +20,7 @@ end
 
 # lowest allocation method 
 function transform_czt1_coords!(X::Vector{T}, Y::Vector{T}, Z::Vector{T}, 
-motor_z::U)::Nothing where {T, U}
+motor_z::U)::Nothing where {T, U <: AbstractFloat}
     t = round.(T, (1000u"μm" .* (U(0), U(0), motor_z) .+ δ))
     @inbounds for i=eachindex(X)
         Y_i = Y[i]
@@ -31,12 +31,12 @@ motor_z::U)::Nothing where {T, U}
     nothing
 end
 
-function merge_cameras_and_transform_coordinates(::Table, czt::TAB, ::Missing, z::Float64)::TAB where {TAB <: Table}
-    transform_czt1_coords!(czt.hit_x.data, czt.hit_y.data, czt.hit_z.data, z)
+function merge_cameras_and_transform_coordinates(::detTable, czt::cztTable, ::Missing, cam_z::AbstractFloat)::cztTable
+    transform_czt1_coords!(czt.hit_x.data, czt.hit_y.data, czt.hit_z.data, cam_z)
     czt
 end
 
-function merge_cameras_and_transform_coordinates(det::Table, czt::TAB, czt2::TAB, cam_z::Float64)::TAB where {TAB <: Table}
+function merge_cameras_and_transform_coordinates(det::detTable, czt::cztTable, czt2::cztTable, cam_z::AbstractFloat)::cztTable
     # TODO: maybe consider doing transformation directly in main loop here
     # instead of seperately for each camera
     transform_czt1_coords!(czt.hit_x.data, czt.hit_y.data, czt.hit_z.data, cam_z)

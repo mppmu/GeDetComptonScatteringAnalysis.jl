@@ -14,7 +14,7 @@ const econv = Dict{Float64, Float64}(
 
 # ----- INFO ------
 # Energies should be determined from pulses...
-function correct_DAQ_energy!(det::Table, cf::T)::Nothing where {T <: AbstractFloat}
+function correct_DAQ_energy!(det::detTable, cf::T)::Nothing where {T <: AbstractFloat}
     for i in eachindex(det)
         new_e::T = DAQ_energy_corr(det.samples[i], cf * det.DAQ_energy[i])
         det.DAQ_energy[i] = new_e / cf
@@ -60,7 +60,7 @@ function get_econv(sourcedir::AbstractString;
     for file in files
         try
             lhd = LHDataStore(joinpath(sourcedir, file))
-            core_e = get_daqe(lhd[name], idx_c)
+            core_e = get_daqe(lhd, name, idx_c)
             append!(E, core_e)
         catch
             nothing
@@ -72,8 +72,8 @@ function get_econv(sourcedir::AbstractString;
     Cs_energy / peakpos[1]
 end
 
-function get_daqe(x::TypedTables.Table, idx_c::Int)
-    daqe = x.DAQ_energy[:]
-    chid = x.chid[:]
+function get_daqe(lhd::LHDataStore, name::AbstractString, idx_c::Int)
+    daqe = lhd[name * "/DAQ_energy"][:]
+    chid = lhd[name * "/chid"][:]
     daqe[findall(x -> x == idx_c, chid)]
 end
