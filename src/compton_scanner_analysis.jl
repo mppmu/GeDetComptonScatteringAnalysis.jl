@@ -10,7 +10,7 @@ function get_z_from_2_hit_events(det::detTuple, czt::cztTuple, R::Number; Δz = 
     zα = get_z_from_camera(czt, R)
 
     #compare them: if they agree within Δz, keep them
-    for z in zα 
+    for z in ustrip.(zα)
         if abs(z - zθ) < Δz 
             return (1, zθ, z)
         end
@@ -20,7 +20,7 @@ function get_z_from_2_hit_events(det::detTuple, czt::cztTuple, R::Number; Δz = 
     czts = swap_CZT_hits(czt)
     zθ = get_z_from_energies(det, czts, R, hv)
     zα = get_z_from_camera(czts, R)
-    for z in zα 
+    for z in ustrip.(zα)
         if abs(z - zθ) < Δz
             return (2, zθ, z)
         end
@@ -47,15 +47,15 @@ end
 
 function get_z_from_camera(czt::cztTuple, R::Float64)
     let x = czt.hit_x, y = czt.hit_y, z = czt.hit_z
-        α = compton_angle(sum(czt.hit_edep), czt.hit_edep[2])
+        α::Float64 = compton_angle(sum(czt.hit_edep), czt.hit_edep[2])
         zα = []
 
         if !(isnan(α))
             try
                 #define the cone and get intersections z1,z2 with the beam axis
-                camhit1 = [x[1], y[1], z[1]]
-                camhit2 = [x[2], y[2], z[2]]
-                cone = Cone(in_mm.(camhit1), in_mm.(camhit1-camhit2), α)
+                camhit1::Vector{QuantityMM{Float64}} = [x[1], y[1], z[1]]
+                camhit2::Vector{QuantityMM{Float64}} = [x[2], y[2], z[2]]
+                cone = Cone(camhit1, camhit1-camhit2, α)
                 z1, z2 = get_possible_z_from_camera(cone, R)
 
                 #information about sign of cos(α) is lost when calculating zα
@@ -75,11 +75,12 @@ function get_z_from_camera(czt::cztTuple, R::Float64)
 end
 
 
-function get_possible_z_from_camera(cone::Cone, R::Number)
+function get_possible_z_from_camera(cone::Cone{T,TT}, R::T) where {T <: AbstractFloat, TT <: QuantityMM{T}}
 
     #get relevant cone parameters
+    u = unit(TT)
     H = cone.axis
-    c0 = cone.origin - Vector([0, R, 0])
+    c0 = cone.origin - u * [0, R, 0]
     cosα = cos(cone.α)
 
     #solve quadartic equation for z
@@ -94,10 +95,11 @@ function get_possible_z_from_camera(cone::Cone, R::Number)
 end
 
 
-function validate_z(z::AbstractFloat, cone::Cone, R::AbstractFloat; Δα::Number = 1e-6)
+function validate_z(z::TT, cone::Cone{T,TT}, R::T; Δα::T = T(1e-6)) where {T <: AbstractFloat, TT <: QuantityMM{T}}
 
     #calculate the angle from the vectors
-    tmp = [0,R,z] - cone.origin
+    u = unit(TT)
+    tmp = TT[u * 0, u * R, z] - cone.origin
     αnew = acos(dot(cone.axis, tmp/norm(tmp)))
 
     #keep only true angles

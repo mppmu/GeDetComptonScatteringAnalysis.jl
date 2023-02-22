@@ -5,6 +5,11 @@ using Unitful: 𝐋, 𝐓, Quantity, lookup_units
 const eV = typeof(lookup_units([Unitful], :eV))
 const ns = typeof(lookup_units([Unitful], :ns))
 const μm = typeof(lookup_units([Unitful], :μm))
+const mm = typeof(lookup_units([Unitful], :mm))
+
+const QuantityMM{T} = Quantity{T, 𝐋, mm}
+const MaybeWithUnitsMM{T} = Union{T, QuantityMM{T}}
+
 
 const cztTuple = NamedTuple{
     (:evt_no, :evt_t, :evt_nhits, :evt_issync, :hit_edep, :hit_t, :hit_detno, :hit_x, :hit_y, :hit_z), 
