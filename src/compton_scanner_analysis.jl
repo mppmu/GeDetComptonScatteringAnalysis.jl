@@ -1,6 +1,9 @@
 in_mm(x::Number) = ustrip(uconvert(u"mm", x))
 
-function get_z_from_2_hit_events(det::detTuple, czt::cztTuple, R::Float64; Δz::QuantityMM = 2.0u"mm", hv::Float64)::Tuple{Int, QuantityMM{Float64}, QuantityMM{Float64}}
+function get_z_from_2_hit_events(
+        det::detTuple, czt::cztTuple, R::QuantityMM{Float64}; 
+        Δz::QuantityMM = 2.0u"mm", hv::Float64
+    )::Tuple{Int, QuantityMM{Float64}, QuantityMM{Float64}}
 
     #if econv*det.DAQ_energy < 250
         #return (false, -1)
@@ -31,7 +34,7 @@ function get_z_from_2_hit_events(det::detTuple, czt::cztTuple, R::Float64; Δz::
 end
 
 
-function get_z_from_energies(det::detTuple, czt::cztTuple, R::Float64, hv::Float64)::QuantityMM{Float64}
+function get_z_from_energies(det::detTuple, czt::cztTuple, R::QuantityMM{Float64}, hv::Float64)::QuantityMM{Float64}
     T = QuantityMM{Float64}
     # TODO: add flag if we want to rely more on camera or DAQ_energies?
     # if ge not depleted -> worse energy resolution -> rely more on camera 
@@ -41,11 +44,11 @@ function get_z_from_energies(det::detTuple, czt::cztTuple, R::Float64, hv::Float
     # θ = compton_angle(cf*det.DAQ_energy*u"keV"+sum(czt.hit_edep), sum(czt.hit_edep))
     # CZT energies
     θ::Float64 = compton_angle(Cs_energy, sum(czt.hit_edep)) 
-    T(czt.hit_z[1]) + hypot(T(czt.hit_x[1]), T(czt.hit_y[1] - R*u"mm")) * cot(θ)
+    T(czt.hit_z[1]) + hypot(T(czt.hit_x[1]), T(czt.hit_y[1] - R)) * cot(θ)
 end
 
 
-function get_z_from_camera(czt::cztTuple, R::Float64)
+function get_z_from_camera(czt::cztTuple, R::QuantityMM{Float64})
     let x = czt.hit_x, y = czt.hit_y, z = czt.hit_z
         α::Float64 = compton_angle(sum(czt.hit_edep), czt.hit_edep[2])
         zα = []
@@ -75,12 +78,12 @@ function get_z_from_camera(czt::cztTuple, R::Float64)
 end
 
 
-function get_possible_z_from_camera(cone::Cone{T,TT}, R::T) where {T <: AbstractFloat, TT <: QuantityMM{T}}
+function get_possible_z_from_camera(cone::Cone{T,TT}, R::TT) where {T <: AbstractFloat, TT <: QuantityMM{T}}
 
     #get relevant cone parameters
     u = unit(TT)
     H = cone.axis
-    c0 = cone.origin - u * [0, R, 0]
+    c0 = cone.origin - [zero(TT), R, zero(TT)]
     cosα = cos(cone.α)
 
     #solve quadartic equation for z
@@ -95,11 +98,10 @@ function get_possible_z_from_camera(cone::Cone{T,TT}, R::T) where {T <: Abstract
 end
 
 
-function validate_z(z::TT, cone::Cone{T,TT}, R::T; Δα::T = T(1e-6)) where {T <: AbstractFloat, TT <: QuantityMM{T}}
+function validate_z(z::TT, cone::Cone{T,TT}, R::TT; Δα::T = T(1e-6)) where {T <: AbstractFloat, TT <: QuantityMM{T}}
 
     #calculate the angle from the vectors
-    u = unit(TT)
-    tmp = TT[u * 0, u * R, z] - cone.origin
+    tmp = TT[zero(TT), R, z] - cone.origin
     αnew = acos(dot(cone.axis, tmp/norm(tmp)))
 
     #keep only true angles
@@ -124,9 +126,9 @@ end
 end
 
 function reconstruct_z(file::AbstractString; name::AbstractString = "segBEGe", 
-    center::Float64 = cntr, ew = 8.0u"keV", Δz::QuantityMM = 2.0u"mm")
+    center::QuantityMM{Float64} = cntr, ew = 8.0u"keV", Δz::QuantityMM = 2.0u"mm")
     det::detTable, czt::cztTable = read_preprocessed_file(file, name)
-    hv::Float64 = getV(file)
+    hv::Float64 = ustrip(getV(file))
     ec = econv[hv] * u"keV"
     det_e = ec*det.DAQ_energy
     czt_e = uconvert.(u"keV", (sum.(czt.hit_edep)))
@@ -134,7 +136,7 @@ function reconstruct_z(file::AbstractString; name::AbstractString = "segBEGe",
                     findall(x -> 250.0u"keV" ≤ x ≤ 440.0u"keV", det_e))
     det_hits = view(det, idx)
     czt_hits = view(czt, idx)
-    R = center - getR(file)
+    R::QuantityMM{Float64} = center - getR(file)
 
     @info "Reconstructing Z from two hit events at R = $R"
     idx_2h = findall(is_valid_2hit, czt_hits)
@@ -159,22 +161,23 @@ end
 loop through all files in `sourcedir` and return for each file the radius, 
 measuretime and reconstructed z's
 """
-function get_all_z(sourcedir::AbstractString; name::AbstractString="segBEGe", center=cntr, ew = 8.0u"keV")
+function get_all_z(sourcedir::AbstractString; name::AbstractString="segBEGe", 
+    center::QuantityMM{Float64} = cntr, ew = 8.0u"keV")
     ffiles = filter(x -> endswith(x, "preprocessed.lh5"), readdir(sourcedir))
-    R = zeros(Float64, length(ffiles))
-    mtime = zeros(Float64, length(ffiles))
-    z = Vector{Quantity{Float64}}[]
+    R = zeros(QuantityMM{Float64}, length(ffiles))
+    mtime = zeros(typeof(1.0u"s"), length(ffiles))
+    z = Vector{QuantityMM{Float64}}[]
     for i=eachindex(ffiles)
         R[i] = getR(ffiles[i])
         mtime[i] = getM(ffiles[i])
         rec_zs = reconstruct_z(joinpath(sourcedir, ffiles[i]); name, center, ew = ew)
         push!(z, rec_zs[:, 1])
     end
-    mtime, R, ustrip.(z)
+    ustrip.(mtime), ustrip.(R), broadcast(z -> ustrip.(z), z) # remove units for now
 end
 
 function get_z_and_waveforms(
-        file::AbstractString, hv::Float64; center = cntr, idx_c::Int = 1, 
+        file::AbstractString, hv::Float64; center::QuantityMM{Float64} = cntr, idx_c::Int = 1, 
         name::AbstractString = "segBEGe", ew = 8.0u"keV", Δz::QuantityMM = 2.0u"mm"
     )
 
@@ -188,7 +191,7 @@ function get_z_and_waveforms(
                     findall(x -> 250.0u"keV" ≤ x ≤ 440.0u"keV", det_e))
     det_hits = view(det, idx)
     czt_hits = view(czt, idx)
-    R = center - getR(file)
+    R::QuantityMM{Float64} = center - getR(file)
 
     # @info "Reconstructing Z from two hit events at R = $R"
     idx_2h = findall(is_valid_2hit, czt_hits)
@@ -216,7 +219,7 @@ Given a `file` and a specified voltage `hv`, build the superpulses from
 two hit and one hit validated hits.  
 """
 function reconstruct_at_radius(file::AbstractString, hv::Float64; name::AbstractString = "segBEGe", 
-    idx_c::Int = 1, Δz::TT = 2.0u"mm", zbin::T = 1.0u"mm",
+    idx_c::Int = 1, Δz::TT = 2.0u"mm", zbin::TT = 1.0u"mm",
     window::Tuple{Int, Int}=(500, 500), τ::Float64=51.8, χ2_max::Float64=3.,
     l1::Int=300, ew = 8.0u"keV", baseline_samples::Int = 500, verbose::Bool = true) where {TT <: QuantityMM}
     

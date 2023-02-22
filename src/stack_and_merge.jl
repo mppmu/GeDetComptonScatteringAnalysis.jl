@@ -22,7 +22,8 @@ function read_and_merge_filtered_file(
         # nseg = length(unique(det.chid))
         core::detTable = det[findall(det.chid .== idx_c)]
         cf = econv[hv]
-        czt::cztTable = merge_cameras_and_transform_coordinates(core, czt1, czt2, getZ(file))
+        motor_z::QuantityMM{Float64} = getZ(file)
+        czt::cztTable = merge_cameras_and_transform_coordinates(core, czt1, czt2, motor_z)
         corr_daq_energy && correct_DAQ_energy!(core, cf)
         idx = findall(e -> 250 ≤ cf*e ≤ 440, core.DAQ_energy)
         rm_pileup && (idx = intersect(findall(is_not_peak_pileup, core.samples), idx))

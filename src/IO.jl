@@ -1,15 +1,15 @@
 # This file is a part of GeDetComptonScatteringAnalysis.jl, licensed under the MIT License (MIT).
 
-const regR = r"(?<=R_)\d+(?:\.\d+){0,1}(?=mm)"
-const regPhi = r"(?<=Phi_)\d+(?:\.\d+){0,1}(?=deg)"
-const regT = r"(?<=T_)\d+(?:\.\d+){0,1}(?=K)"
-const regZ = r"(?<=Z_)\d+(?:\.\d+){0,1}(?=mm)"
-const regM = r"(?<=measuretime_)\d+(?:\.\d+){0,1}(?=sec)"
-const regV = r"(?<=HV_)\d+(?:\.\d+){0,1}(?=V)"
+const regR = r"(?<=R_)\d+(?:\.\d+){0,1}mm(?=_)"
+const regPhi = r"(?<=Phi_)\d+(?:\.\d+){0,1}deg(?=_)"
+const regT = r"(?<=T_)\d+(?:\.\d+){0,1}K(?=_)"
+const regZ = r"(?<=Z_)\d+(?:\.\d+){0,1}mm(?=_)"
+const regM = r"(?<=measuretime_)\d+(?:\.\d+){0,1}s(?=ec)"
+const regV = r"(?<=HV_)\d+(?:\.\d+){0,1}V(?=)"
 
-_parse(m::RegexMatch) = parse(Float64, m.match)
-_parse(::Nothing) = NaN
-_match(r::Regex, s::AbstractString)::Float64 = _parse(match(r, s))
+@inline _parse(m::RegexMatch) = Float64(uparse(replace(m.match, "deg" => "°")))
+@inline _parse(::Nothing) = NaN
+@inline _match(r::Regex, s::AbstractString) = _parse(match(r, s))
 
 @inline getR(s::AbstractString)   = _match(regR, s)
 @inline getPhi(s::AbstractString) = _match(regPhi, s)
