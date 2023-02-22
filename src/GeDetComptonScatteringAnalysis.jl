@@ -41,6 +41,7 @@ include("energies.jl")
 include("IO.jl")
 include("stack_and_merge.jl")
 include("transformations.jl")
+include("pulse_shape_analysis.jl")
 # include("plot_recipes.jl")
 
 end # module
