@@ -1,28 +1,37 @@
 # This file is a part of GeDetComptonScatteringAnalysis.jl, licensed under the MIT License (MIT).
 
-regR = "R_(?<R>\\d+?\\.\\d+)mm"
-regPhi = "_Phi_(?<Phi>\\d+?\\.\\d+)deg"
-regT = "_T_(?<T>\\d+?\\.\\d+)K"
-regZ = "_Z_(?<Z>\\d+?\\.\\d+)mm"
-regM = "_measuretime_(?<time>\\d+?)sec"
-regV = "HV_(?<voltage>[\\d\\.]+?)V"
-getR(s::String) = parse(Float64, match(Regex(regR), s).captures[1])
-getPhi(s::String) = parse(Float64, match(Regex(regPhi), s).captures[1])
-getT(s::String) = parse(Float64, match(Regex(regT), s).captures[1])
-getZ(s::String) = parse(Float64, match(Regex(regZ), s).captures[1])
-getM(s::String) = parse(Float64, match(Regex(regM), s).captures[1])
-getV(s::String) = parse(Float64, match(Regex(regV), s).captures[1])
+const regR = r"(?<=R_)\d+(?:\.\d+){0,1}mm(?=_)"
+const regPhi = r"(?<=Phi_)\d+(?:\.\d+){0,1}deg(?=_)"
+const regT = r"(?<=T_)\d+(?:\.\d+){0,1}K(?=_)"
+const regZ = r"(?<=Z_)\d+(?:\.\d+){0,1}mm(?=_)"
+const regM = r"(?<=measuretime_)\d+(?:\.\d+){0,1}s(?=ec)"
+const regV = r"(?<=HV_)\d+(?:\.\d+){0,1}V(?=)"
+
+@inline _parse(m::RegexMatch) = Float64(uparse(replace(m.match, "deg" => "°")))
+@inline _parse(::Nothing) = NaN
+@inline _match(r::Regex, s::AbstractString) = _parse(match(r, s))
+
+@inline getR(s::AbstractString)   = _match(regR, s)
+@inline getPhi(s::AbstractString) = _match(regPhi, s)
+@inline getT(s::AbstractString)   = _match(regT, s)
+@inline getZ(s::AbstractString)   = _match(regZ, s)
+@inline getM(s::AbstractString)   = _match(regM, s)
+@inline getV(s::AbstractString)   = _match(regV, s)
 
 ############################
 # filtered -> preprocessed #
 ############################
-function fetch_relevant_filtered_files(sourcedir, phi, z, r, hv_in_fname, n_max_files)
-    allfiles = filter(file -> endswith(file, "filtered.h5")
+function fetch_relevant_filtered_files(
+        sourcedir::AbstractString, phi::Number, z::Number, r::Number, 
+        hv_in_fname::Bool, n_max_files::Int
+    )::Vector{String}
+
+    allfiles::Vector{String} = filter(file -> endswith(file, "filtered.h5")
                             && occursin("Phi_$(phi)", file)
                             && occursin("Z_$(z)", file)
                             && occursin("R_$(r)", file), readdir(sourcedir))
     if hv_in_fname
-        allfiles = filter(file -> contains(file, "_HV_$hv"), allfiles)
+        allfiles = filter(file -> occursin("_HV_$(hv)", file), allfiles)
     end
     if n_max_files > 0
         allfiles = allfiles[1:min(length(allfiles), n_max_files)]
@@ -31,7 +40,8 @@ function fetch_relevant_filtered_files(sourcedir, phi, z, r, hv_in_fname, n_max_
 end
 
 function is_filtered_file(f::AbstractString)::Bool
-    return (endswith(f, "-filtered.h5") || throw(ArgumentError, "Expected filtered file as input.")) && isfile(f)
+    return (endswith(f, "-filtered.h5") || throw(ArgumentError, "Expected filtered file as input.")) && 
+           (isfile(f) || throw(ArgumentError, "File does not exist (missing path to file?)"))
 end
 
 function read_filtered_file(f::AbstractString, name::AbstractString)
@@ -41,7 +51,7 @@ function read_filtered_file(f::AbstractString, name::AbstractString)
     end
 end
 
-function build_output_prepocessed_file_name(files, destdir, n)
+function build_preprocessed_file_name(files::Vector{String}, destdir::AbstractString, n::Int)::String
     destdir = joinpath(destdir, "")
     fpos, ftime = split(basename(files[end]), "measuretime_")
     fmtime, fdate = split(ftime, "sec")
@@ -51,9 +61,12 @@ function build_output_prepocessed_file_name(files, destdir, n)
         fpos * "measuretime_$(fmtime)sec" * ending * "preprocessed.lh5")
 end
 
-write_preprocessed_file(f::LHDataStore, name::String , data::Tuple{Table, Table}) = begin
+function write_preprocessed_file(f::LHDataStore, name::AbstractString , data::Tuple{detTable, cztTable, Int, typeof(Cs_energy)})::Nothing
     LegendHDF5IO.writedata(f.data_store, "$name", data[1])
     LegendHDF5IO.writedata(f.data_store, "czt", data[2])
+    f["idx_c"] = data[3]
+    f["econv"] = data[4]
+    nothing
 end
 
 
@@ -61,12 +74,13 @@ end
 # preprocessed -> results  #
 ############################
 function is_preprocessed_file(f::AbstractString)::Bool 
-    return (endswith(f, "-preprocessed.lh5") || throw(ArgumentError, "Expected prepocessed file as input.")) && isfile(f)
+    return (endswith(f, "-preprocessed.lh5") || throw(ArgumentError, "Expected prepocessed file as input.")) &&
+           (isfile(f) || throw(ArgumentError, "File does not exist (missing path to file?)"))
 end
 
-function read_preprocessed_file(f::AbstractString, name::AbstractString)
+function read_preprocessed_file(f::AbstractString, name::AbstractString)::Tuple{detTable, cztTable, Int, typeof(Cs_energy)}
     @assert is_preprocessed_file(f)
     LHDataStore(f) do lhd
-        lhd[name][:], lhd["czt"][:]
+        lhd[name][:], lhd["czt"][:], lhd["idx_c"], lhd["econv"]
     end
 end

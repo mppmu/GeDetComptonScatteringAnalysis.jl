@@ -2,7 +2,6 @@
 
 using Test
 using GeDetComptonScatteringAnalysis
-using GeDetComptonScatteringAnalysis: get_econv, econv
 using Unitful
 
 datapath = joinpath(@__DIR__, "testdata")
@@ -23,8 +22,6 @@ for file in readdir(destdir) rm(joinpath(destdir, file)) end
         @test isfile(resultfile)
         mtime, R, Z = get_all_z(destdir)
         @inferred reconstruct_at_radius(resultfile, hv, ew = 20u"keV")
-        # get_econv is inconsistent with the values quoted in econv dictionary
-        @test_broken get_econv(datapath) ≈ econv[hv]*u"keV" rtol=0.1 
         rm(resultfile)
     end
 
@@ -54,9 +51,8 @@ end
         stack_and_merge_at_z(datapath, destdir, r, phi, z, hv, name, idx_c = 16)
         resultfile = joinpath(destdir, "R_71.0mm_Z_25.0mm_Phi_69.9deg_T_95.0K_measuretime_600sec_HV_1200.0V-20220919T141651Z-preprocessed.lh5")
         @test isfile(resultfile)
-        mtime, R, Z = get_all_z(destdir, name = name, center = 82.12404619872268)
-        @inferred reconstruct_at_radius(resultfile, hv, name = name, idx_c = 16)
-        @test get_econv(datapath, idx_c = 16, bsize = 1000, max=1_500_000, name = name) ≈ econv[hv]*u"keV" rtol=0.1
+        mtime, R, Z = get_all_z(destdir, name = name, center = 82.12404619872268u"mm")
+        @inferred reconstruct_at_radius(resultfile, hv, name = name)
         rm(resultfile)
     end
 end

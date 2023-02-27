@@ -32,6 +32,7 @@ export get_daqe
 export Cone
 
 
+include("types.jl")
 include("functions.jl")
 include("cone.jl")
 include("compton_scanner_analysis.jl")
@@ -40,6 +41,8 @@ include("energies.jl")
 include("IO.jl")
 include("stack_and_merge.jl")
 include("transformations.jl")
+include("z_reconstruction.jl")
+include("pulse_shape_analysis.jl")
 # include("plot_recipes.jl")
 
 end # module
