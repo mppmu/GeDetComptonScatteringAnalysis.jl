@@ -94,13 +94,13 @@ Given a `file` and a specified voltage `hv`, build the superpulses from
 two hit and one hit validated hits.  
 """
 function reconstruct_at_radius(file::AbstractString, hv::Float64; name::AbstractString = "segBEGe", 
-    idx_c::Int = 1, Δz::TT = 2.0u"mm", zbin::TT = 1.0u"mm",
+    idx_c::Int = 1, Δz::TT = 2.0u"mm", zbin::TT = 2.0u"mm",
     window::Tuple{Int, Int}=(500, 500), τ::Float64=51.8, χ2_max::Float64=3.,
     l1::Int=300, ew = 8.0u"keV", baseline_samples::Int = 500, verbose::Bool = true) where {TT <: QuantityMM}
     
     z2h, z1h, wf2h, wf1h = get_z_and_waveforms(file, hv, name = name, idx_c = idx_c, ew = ew, Δz = Δz)
     wlength = sum(window)+1
-    z_Cs = collect(zero(TT):2*zbin:TT(40u"mm"))
+    z_Cs = collect(zero(TT):zbin:TT(40u"mm"))
     superpulses_Cs = [zeros(Float64, wlength) for _ in eachindex(z_Cs)]
     mask = zeros(Bool, length(z_Cs))
     if verbose prog = ProgressUnknown("Reconstructing superpulses at z =") end
@@ -108,7 +108,7 @@ function reconstruct_at_radius(file::AbstractString, hv::Float64; name::Abstract
         verbose && ProgressMeter.update!(prog, i)
 
         # select all two-hit events in the given z-bin
-        idxz2 = findall(z -> abs(z - z_Cs[i]) < zbin, z2h)
+        idxz2 = findall(z -> abs(z - z_Cs[i]) < zbin/2, z2h)
         length(idxz2) == 0 && continue
 
         # correct the pulses for baseline and τ, and time-align them
