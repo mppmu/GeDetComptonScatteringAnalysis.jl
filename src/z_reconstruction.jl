@@ -6,27 +6,23 @@ function get_z_from_2_hit_events(
     )::Tuple{Int, QuantityMM{Float64}, QuantityMM{Float64}}
 
     #if econv*det.DAQ_energy < 250
-        #return (false, -1)
+    #    return (0, NaN*u"mm", NaN*u"mm")
     #end
-    #get z coordinates for scatter point in segBEGe
-    zθ::QuantityMM{Float64} = get_z_from_energies(det, czt, R, hv)
-    zα::Vector{QuantityMM{Float64}} = get_z_from_camera(czt, R)
 
+    #get z coordinates for scatter point in detector
     #compare them: if they agree within Δz, keep them
-    for z in zα
-        if abs(z - zθ) < Δz 
-            return (1, zθ, z)
-        end
+    zθ::QuantityMM{Float64} = get_z_from_energies(det, czt, R, hv)
+    zα::QuantityMM{Float64} = get_z_from_camera(czt, R)
+    if !isnan(zα) && abs(zα - zθ) < Δz 
+        return (1, zθ, zα)
     end
     
-    #swaphits and try again
+    #swap hits and try again
     czts = swap_CZT_hits(czt)
     zθ = get_z_from_energies(det, czts, R, hv)
     zα = get_z_from_camera(czts, R)
-    for z in zα
-        if abs(z - zθ) < Δz
-            return (2, zθ, z)
-        end
+    if !isnan(zα) && abs(zα - zθ) < Δz 
+        return (2, zθ, zα)
     end
 
     #else discard them
@@ -48,11 +44,10 @@ function get_z_from_energies(det::detTuple, czt::cztTuple, R::QuantityMM{Float64
 end
 
 
-function get_z_from_camera(czt::cztTuple, R::QuantityMM{Float64})
+function get_z_from_camera(czt::cztTuple, R::QuantityMM{Float64})::QuantityMM{Float64}
+
     let x = czt.hit_x, y = czt.hit_y, z = czt.hit_z
         α::Float64 = compton_angle(sum(czt.hit_edep), czt.hit_edep[2])
-        zα = []
-
         if !(isnan(α))
             try
                 #define the cone and get intersections z1,z2 with the beam axis
@@ -64,16 +59,16 @@ function get_z_from_camera(czt::cztTuple, R::QuantityMM{Float64})
                 #information about sign of cos(α) is lost when calculating zα
                 #so check whether the actual vectors return α (keep) or π-α (discard)
                 if validate_z(z1,cone,R)
-                    push!(zα,z1)
+                    return z1
                 elseif validate_z(z2,cone,R)
-                    push!(zα,z2)
+                    return z2
                 end
             catch e
                 #this catches all imaginary solutions in get_possible_z_from_camera
                 if !(e isa DomainError) error(e) end
             end
         end
-        return zα
+        return NaN * u"mm"
     end
 end
 
