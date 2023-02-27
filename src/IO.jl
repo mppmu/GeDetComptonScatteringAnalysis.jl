@@ -61,9 +61,11 @@ function build_preprocessed_file_name(files::Vector{String}, destdir::AbstractSt
         fpos * "measuretime_$(fmtime)sec" * ending * "preprocessed.lh5")
 end
 
-function write_preprocessed_file(f::LHDataStore, name::AbstractString , data::Tuple{detTable, cztTable})::Nothing
+function write_preprocessed_file(f::LHDataStore, name::AbstractString , data::Tuple{detTable, cztTable, Int, typeof(Cs_energy)})::Nothing
     LegendHDF5IO.writedata(f.data_store, "$name", data[1])
     LegendHDF5IO.writedata(f.data_store, "czt", data[2])
+    f["idx_c"] = data[3]
+    f["econv"] = data[4]
     nothing
 end
 
@@ -76,9 +78,9 @@ function is_preprocessed_file(f::AbstractString)::Bool
            (isfile(f) || throw(ArgumentError, "File does not exist (missing path to file?)"))
 end
 
-function read_preprocessed_file(f::AbstractString, name::AbstractString)::Tuple{detTable, cztTable}
+function read_preprocessed_file(f::AbstractString, name::AbstractString)::Tuple{detTable, cztTable, Int, typeof(Cs_energy)}
     @assert is_preprocessed_file(f)
     LHDataStore(f) do lhd
-        lhd[name][:], lhd["czt"][:]
+        lhd[name][:], lhd["czt"][:], lhd["idx_c"], lhd["econv"]
     end
 end

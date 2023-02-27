@@ -2,9 +2,9 @@
 
 function reconstruct_z(file::AbstractString; name::AbstractString = "segBEGe", 
     center::QuantityMM{Float64} = cntr, ew = 8.0u"keV", Δz::QuantityMM = 2.0u"mm")
-    det::detTable, czt::cztTable = read_preprocessed_file(file, name)
+    det::detTable, czt::cztTable, idx_c::Int, ec::typeof(Cs_energy) = read_preprocessed_file(file, name)
     hv::Float64 = ustrip(getV(file))
-    ec = econv[hv] * u"keV"
+    #ec = econv[hv] * u"keV"
     det_e = ec*det.DAQ_energy
     czt_e = uconvert.(u"keV", (sum.(czt.hit_edep)))
     idx = intersect(findall(x -> abs(x - Cs_energy) ≤ ew, det_e+czt_e), 
@@ -52,14 +52,14 @@ function get_all_z(sourcedir::AbstractString; name::AbstractString="segBEGe",
 end
 
 function get_z_and_waveforms(
-        file::AbstractString, hv::Float64; center::QuantityMM{Float64} = cntr, idx_c::Int = 1, 
+        file::AbstractString, hv::Float64; center::QuantityMM{Float64} = cntr, #idx_c::Int = 1, 
         name::AbstractString = "segBEGe", ew = 8.0u"keV", Δz::QuantityMM = 2.0u"mm"
     )
 
-    det, czt = read_preprocessed_file(file, name)
+    det::detTable, czt::cztTable, idx_c::Int, ec::typeof(Cs_energy) = read_preprocessed_file(file, name)
     det = det[findall(x -> x == idx_c, det.chid)]
     @assert length(det) == length(czt) "$name and czt do not have the same number of events"
-    ec = econv[hv] * u"keV"
+    #ec = econv[hv] * u"keV"
     det_e = ec*det.DAQ_energy
     czt_e = uconvert.(u"keV", (sum.(czt.hit_edep)))
     idx = intersect(findall(x -> abs(x - Cs_energy) ≤ ew, det_e+czt_e), 
@@ -93,12 +93,12 @@ end
 Given a `file` and a specified voltage `hv`, build the superpulses from 
 two hit and one hit validated hits.  
 """
-function reconstruct_at_radius(file::AbstractString, hv::Float64; name::AbstractString = "segBEGe", 
-    idx_c::Int = 1, Δz::TT = 2.0u"mm", zbin::TT = 2.0u"mm",
+function reconstruct_at_radius(file::AbstractString, hv::Float64; 
+    name::AbstractString = "segBEGe", Δz::TT = 2.0u"mm", zbin::TT = 2.0u"mm",
     window::Tuple{Int, Int}=(500, 500), τ::Float64=51.8, χ2_max::Float64=3.,
     l1::Int=300, ew = 8.0u"keV", baseline_samples::Int = 500, verbose::Bool = true) where {TT <: QuantityMM}
     
-    z2h, z1h, wf2h, wf1h = get_z_and_waveforms(file, hv, name = name, idx_c = idx_c, ew = ew, Δz = Δz)
+    z2h, z1h, wf2h, wf1h = get_z_and_waveforms(file, hv, name = name, ew = ew, Δz = Δz)
     wlength = sum(window)+1
     z_Cs = collect(zero(TT):zbin:TT(40u"mm"))
     superpulses_Cs = [zeros(Float64, wlength) for _ in eachindex(z_Cs)]

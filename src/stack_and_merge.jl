@@ -31,6 +31,7 @@ function stack_and_merge_at_z(
         sourcedir::AbstractString, destdir::AbstractString, 
         r::Number, phi::Number, z::Number, hv::Number, name::AbstractString; 
         idx_c::Int = 1, #corr_daq_energy::Bool = false, rm_pileup::Bool = false,
+        bsize::Int = 1000, max::Int = 1_500_000,
         hv_in_filename::Bool = false, n_max_files::Int = -1, verbose::Bool = true
     )::Nothing 
 
@@ -44,9 +45,10 @@ function stack_and_merge_at_z(
             @warn "$file was ignored due to possible file issues"
         end
     end
+    econv::typeof(Cs_energy) = get_econv(x[1][1]; idx_c, bsize, max, verbose)
     verbose && println("$(x[2]) / $(length(files)) successful")
     fileout = build_preprocessed_file_name(files, destdir, x[2])
-    LHDataStore(f -> write_preprocessed_file(f, name, x[1]), fileout, "w")
-    chmod(fileout, 0o774)
+    LHDataStore(f -> write_preprocessed_file(f, name, (x[1]..., idx_c, econv)), fileout, "w")
+    chmod(fileout, 0o754)
     nothing
 end
