@@ -135,5 +135,5 @@ function merge_cameras_and_transform_coordinates(det::detTable, czt::cztTable, c
         hit_x = VectorOfVectors(x, elem_ptr, no_consistency_checks),
         hit_y = VectorOfVectors(y, elem_ptr, no_consistency_checks),
         hit_z = VectorOfVectors(z, elem_ptr, no_consistency_checks),
-    )
+    )[:]
 end

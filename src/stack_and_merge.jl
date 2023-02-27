@@ -14,22 +14,18 @@ _vcat!(x::Tuple{Tuple{detTable, cztTable}, Int}, y::Tuple{detTable, cztTable}) =
 
 
 function read_and_merge_filtered_file(
-        file::AbstractString, name::AbstractString, hv::Number; 
-        idx_c::Int = 1, corr_daq_energy::Bool = false, rm_pileup::Bool = false
+        file::AbstractString, name::AbstractString; #hv::Number; 
+        idx_c::Int = 1, #corr_daq_energy::Bool = false, rm_pileup::Bool = false
     )
     try
         det::detTable, czt1::cztTable, czt2 = read_filtered_file(file, name)
-        # nseg = length(unique(det.chid))
         core::detTable = det[findall(det.chid .== idx_c)]
-        cf = econv[hv]
         motor_z::QuantityMM{Float64} = getZ(file)
         czt::cztTable = merge_cameras_and_transform_coordinates(core, czt1, czt2, motor_z)
-        corr_daq_energy && correct_DAQ_energy!(core, cf)
-        idx = findall(e -> 250 ≤ cf*e ≤ 440, core.DAQ_energy)
-        rm_pileup && (idx = intersect(findall(is_not_peak_pileup, core.samples), idx))
-        core[idx], czt[idx]
+        # TODO: reintroduce rm_pileup with idx that also works for detectors with multiple channels
+        # rm_pileup && (idx = intersect(findall(is_not_peak_pileup, core.samples), idx))
+        det, czt
     catch e
-        throw(e)
         @warn "$file was ignored due to possible file issues"
         (missing, missing)
     end
