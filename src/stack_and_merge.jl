@@ -17,11 +17,20 @@ function read_and_merge_filtered_file(
         file::AbstractString, name::AbstractString; #hv::Number; 
         idx_c::Int = 1, #corr_daq_energy::Bool = false, rm_pileup::Bool = false
     )::Tuple{detTable, cztTable}
-
-    det::detTable, czt1::cztTable, czt2 = read_filtered_file(file, name)
+    det, czt1, czt2 = try
+        read_filtered_file(file, name)
+    catch e
+        @warn "Error while reading the file $file"
+        throw(e)
+    end
     core::detTable = det[findall(det.chid .== idx_c)]
     motor_z::QuantityMM{Float64} = getZ(file)
-    czt::cztTable = merge_cameras_and_transform_coordinates(core, czt1, czt2, motor_z)
+    czt::cztTable = try
+        merge_cameras_and_transform_coordinates(core, czt1, czt2, motor_z)
+    catch e
+        @warn "Error while merging czt Tables"
+        throw(e)
+    end
     # TODO: reintroduce rm_pileup with idx that also works for detectors with multiple channels
     # rm_pileup && (idx = intersect(findall(is_not_peak_pileup, core.samples), idx))
     det, czt
@@ -42,7 +51,8 @@ function stack_and_merge_at_z(
             x = _vcat!(x, 
             read_and_merge_filtered_file(file, name; idx_c))
         catch e
-            @warn "$file was ignored due to possible file issues"
+            @warn "$file was ignored due to error while reading the file
+                or merging the czt cameras"
         end
     end
     econv::typeof(Cs_energy) = get_econv(x[1][1]; idx_c, bsize, max, verbose)
