@@ -61,7 +61,8 @@ function build_preprocessed_file_name(files::Vector{String}, destdir::AbstractSt
         fpos * "measuretime_$(fmtime)sec" * ending * "preprocessed.lh5")
 end
 
-function write_preprocessed_file(f::LHDataStore, name::AbstractString , data::Tuple{detTable, cztTable, Int, typeof(Cs_energy)})::Nothing
+function write_preprocessed_file(f::LHDataStore, name::AbstractString , 
+        data::Tuple{detTable, cztTable, Int, typeof(Cs_energy)})::Nothing
     LegendHDF5IO.writedata(f.data_store, "$name", data[1])
     LegendHDF5IO.writedata(f.data_store, "czt", data[2])
     f["idx_c"] = data[3]
