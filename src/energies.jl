@@ -78,12 +78,12 @@ consider in the histogram and `name` the name of the table
 #     daqe[findall(x -> x == idx_c, chid)]
 # end
 
-function get_econv(det::detTable;
-        idx_c::Int = 1, bsize::Int = 1000, max::Int = 1_500_000, 
-        verbose::Bool = true
-    )::typeof(Cs_energy)
-
-    h::Histogram{Float64} = fit(Histogram{Float64}, det.DAQ_energy[findall(det.chid .== idx_c)], (1:bsize:max))
+function get_econv(det::detTable; idx_c::Int = 1, bsize::Int = 1000, 
+        max::Int = 1_500_000)::typeof(Cs_energy)
+    h::Histogram{Float64} = fit(
+        Histogram{Float64}, 
+        det.DAQ_energy[findall(det.chid .== idx_c)], 
+        (1:bsize:max))
     _, peakpos = RadiationSpectra.peakfinder(h)
-    Cs_energy / peakpos[1]
+    Cs_energy / maximum(peakpos)
 end
