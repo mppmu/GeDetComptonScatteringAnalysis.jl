@@ -70,3 +70,27 @@ const detTable = TypedTables.Table{
         }
     }
 }
+
+_detTable() = 
+    TypedTables.Table(
+        evt_no = Vector{Int32}(), # evt_no
+        chid = Vector{Int32}(), # chid
+        evt_t = Vector{Quantity{Int64, 𝐓, ns}}(), # evt_t
+        DAQ_energy = Vector{Int32}(), # DAQ_energy
+        samples = VectorOfVectors{Int16}() # samples
+    )
+    
+_cztTable() = 
+    TypedTables.Table(
+        evt_no = Vector{Int32}(), # evt_no
+        evt_t = Vector{Quantity{Int64, 𝐓, ns}}(), # evt_t
+        evt_nhits = Vector{Int32}(), # evt_nhits
+        evt_issync = BitVector(), # evt_issync
+        hit_edep = VectorOfVectors{Quantity{Int32, dimension(1u"eV"), eV}}(), # hit_edep
+        hit_t = VectorOfVectors{Quantity{Int64, 𝐓, ns}}(), # hit_t
+        hit_detno = VectorOfVectors{Int32}(), # hit_detno
+        hit_x = VectorOfVectors{Quantity{Int32, 𝐋, μm}}(), # hit_x
+        hit_y = VectorOfVectors{Quantity{Int32, 𝐋, μm}}(), # hit_y
+        hit_z = VectorOfVectors{Quantity{Int32, 𝐋, μm}}(), # hit_z
+    )
+export _detTable, _cztTable
