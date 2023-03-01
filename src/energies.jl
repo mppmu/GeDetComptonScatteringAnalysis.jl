@@ -44,46 +44,14 @@ DAQ_energy from the core. `idx_c` denotes the index of the core segment,
 `nseg` the number of segments ,`max` the maximal raw value to 
 consider in the histogram and `name` the name of the table
 """
-# function get_econv(sourcedir::AbstractString;
-#         idx_c::Int = 1, bsize::Int = 1000, max::Int = 1_500_000, 
-#         name::AbstractString = "segBEGe", verbose::Bool = true
-#     )::typeof(Cs_energy)
-
-#     E::Vector{Int32} = Int32[]
-#     files::Vector{String} = readdir(sourcedir)
-    
-#     if verbose 
-#         N::Int = length(files)
-#         prog = Progress(N, "Reading $(N) file" * (N != 1 ? "s" : ""), 1) 
-#     end
-
-#     for file in files
-#         try
-#             lhd = LHDataStore(joinpath(sourcedir, file))
-#             core_e = get_daqe(lhd, name, idx_c)
-#             append!(E, core_e)
-#         catch
-#             nothing
-#         end
-#         verbose && next!(prog)
-#     end
-#     h = fit(Histogram{Float64}, E, (1:bsize:max))
-#     _, peakpos = RadiationSpectra.peakfinder(h)
-#     Cs_energy / peakpos[1]
-# end
-
-# function get_daqe(lhd::LHDataStore, name::AbstractString, idx_c::Int)
-#     daqe = lhd[name * "/DAQ_energy"][:]
-#     chid = lhd[name * "/chid"][:]
-#     daqe[findall(x -> x == idx_c, chid)]
-# end
-
 function get_econv(det::detTable; idx_c::Int = 1, bsize::Int = 1000, 
-        max::Int = 1_500_000)::typeof(Cs_energy)
+        max::Int = 1_500_000, verbose::Bool = true)::typeof(Cs_energy)
     h::Histogram{Float64} = fit(
         Histogram{Float64}, 
         det.DAQ_energy[findall(det.chid .== idx_c)], 
         (1:bsize:max))
     _, peakpos = RadiationSpectra.peakfinder(h)
-    Cs_energy / maximum(peakpos)
+    cf = Cs_energy / maximum(peakpos)
+    verbose && @info "energy conversion factor" cf
+    return cf
 end

@@ -39,7 +39,7 @@ function stack_and_merge_at_z(
         append!(czt, _czt)
         successful += 1
     end
-    econv::typeof(Cs_energy) = get_econv(det; idx_c, bsize, max)
+    econv::typeof(Cs_energy) = get_econv(det; idx_c, bsize, max, verbose)
     verbose && println("$successful / $(length(files)) successful")
     fileout = build_preprocessed_file_name(files, destdir, successful)
     write_preprocessed_file(fileout, det_name, (det, czt, idx_c, econv))
