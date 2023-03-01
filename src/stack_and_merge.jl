@@ -24,17 +24,17 @@ end
 
 function stack_and_merge_at_z(
         sourcedir::AbstractString, destdir::AbstractString, 
-        r::Number, phi::Number, z::Number, hv::Number, name::AbstractString; 
+        r::Number, phi::Number, z::Number, hv::Number, det_name::AbstractString; 
         idx_c::Int = 1, #corr_daq_energy::Bool = false, rm_pileup::Bool = false,
         bsize::Int = 1000, max::Int = 1_500_000, hv_in_filename::Bool = false, 
         n_max_files::Int = -1, verbose::Bool = true)::Nothing 
     files = fetch_relevant_filtered_files(sourcedir, phi, z, r, hv_in_filename, n_max_files)
     det::detTable, czt::cztTable = 
-        read_and_merge_filtered_file(files[1], name; idx_c)
+        read_and_merge_filtered_file(files[1], det_name; idx_c)
     successful = 1
     for file in files[2:end]
         _det::detTable, _czt::cztTable = 
-            read_and_merge_filtered_file(file, name; idx_c)
+            read_and_merge_filtered_file(file, det_name; idx_c)
         append!(det, _det)
         append!(czt, _czt)
         successful += 1
@@ -42,9 +42,7 @@ function stack_and_merge_at_z(
     econv::typeof(Cs_energy) = get_econv(det; idx_c, bsize, max, verbose)
     verbose && println("$successful / $(length(files)) successful")
     fileout = build_preprocessed_file_name(files, destdir, successful)
-    LHDataStore(
-        f -> write_preprocessed_file(f, name, (det, czt, idx_c, econv)), 
-        fileout, "w")
+    write_preprocessed_file(fileout, det_name, (det, czt, idx_c, econv))
     chmod(fileout, 0o754)
     nothing
 end
