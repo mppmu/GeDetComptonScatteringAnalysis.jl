@@ -32,7 +32,7 @@ function stack_and_merge_at_z(
     files = fetch_relevant_filtered_files(
         sourcedir, phi, z, r, hv_in_filename, n_max_files)
     det::detTable, czt::cztTable = _detTable(), _cztTable()
-    successful = 0
+    successful_files = String[]
     for i=eachindex(files)
         try
             _det::detTable, _czt::cztTable = 
@@ -44,14 +44,15 @@ function stack_and_merge_at_z(
             end
             append!(det, _det)
             append!(czt, _czt)
-            successful += 1
+            append!(successful_files, [files[i]])
         catch e
             nothing
         end
     end
     econv::typeof(Cs_energy) = get_econv(det; idx_c, bsize, max, verbose)
-    verbose && println("$successful / $(length(files)) successful")
-    fileout = build_preprocessed_file_name(files, destdir, successful)
+    verbose && println(
+        "$(length(successful_files)) / $(length(files)) successful")
+    fileout = build_preprocessed_file_name(successful_files, destdir)
     write_preprocessed_file(fileout, det_name, (det, czt, idx_c, econv))
     chmod(fileout, 0o754)
     nothing

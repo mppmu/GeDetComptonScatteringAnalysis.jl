@@ -51,12 +51,14 @@ function read_filtered_file(f::AbstractString, name::AbstractString)
     end
 end
 
-function build_preprocessed_file_name(files::Vector{String}, destdir::AbstractString, n::Int)::String
+function build_preprocessed_file_name(files::Vector{String}, 
+        destdir::AbstractString)::String
+    n = length(files)
+    fmtime = Int32(ustrip(sum(map(getM, files))))
     destdir = joinpath(destdir, "")
     fpos, ftime = split(basename(files[end]), "measuretime_")
-    fmtime, fdate = split(ftime, "sec")
+    _, fdate = split(ftime, "sec")
     ending, _ = split(fdate, "filtered")
-    fmtime = n*parse(Int32, fmtime)
     joinpath(destdir, 
         fpos * "measuretime_$(fmtime)sec" * ending * "preprocessed.lh5")
 end
