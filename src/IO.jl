@@ -18,6 +18,9 @@ const regV = r"(?<=HV_)\d+(?:\.\d+){0,1}V(?=)"
 @inline getM(s::AbstractString)   = _match(regM, s)
 @inline getV(s::AbstractString)   = _match(regV, s)
 
+@inline compute_measuretime(files::Vector{String}) =
+    Int32(ustrip(sum(map(getM, files))))
+
 ############################
 # filtered -> preprocessed #
 ############################
@@ -53,7 +56,6 @@ end
 
 function build_preprocessed_file_name(files::Vector{String}, 
         destdir::AbstractString)::String
-    n = length(files)
     fmtime = Int32(ustrip(sum(map(getM, files))))
     destdir = joinpath(destdir, "")
     fpos, ftime = split(basename(files[end]), "measuretime_")
@@ -64,9 +66,10 @@ function build_preprocessed_file_name(files::Vector{String},
 end
 
 function write_preprocessed_file(
-        fileout::AbstractString, det_name::AbstractString, 
-        data::Tuple{detTable, cztTable, Int, typeof(Cs_energy)})::Nothing
-    LHDataStore(fileout, "cw") do f
+        fileout::AbstractString, det_name::AbstractString,
+        data::Tuple{detTable, cztTable, Int, typeof(Cs_energy)}, 
+        mode = "cw")::Nothing
+    LHDataStore(fileout, mode) do f
         LegendHDF5IO.writedata(f.data_store, "$det_name", data[1])
         LegendHDF5IO.writedata(f.data_store, "czt", data[2])
         f["idx_c"] = data[3]
