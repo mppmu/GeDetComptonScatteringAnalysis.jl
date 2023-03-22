@@ -14,6 +14,7 @@ using IntervalSets
 using LegendHDF5IO
 using LsqFit
 using ProgressMeter
+using RadiationDetectorDSP
 using RadiationSpectra
 using RecipesBase
 using Rotations
