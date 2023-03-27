@@ -15,11 +15,14 @@ using LegendHDF5IO
 using LsqFit
 using ProgressMeter
 using RadiationDetectorDSP
+using RadiationDetectorDSP: SamplesOrWaveform, RealQuantity, RDWaveform, 
+    AbstractSamples, _floattype
 using RadiationSpectra
 using RecipesBase
 using Rotations
 using StaticArrays
 using StatsBase
+using StructArrays
 using Tables
 using TypedTables
 using Unitful

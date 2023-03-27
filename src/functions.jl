@@ -1,5 +1,5 @@
 # This file is a part of GeDetComptonScatteringAnalysis.jl, licensed under the MIT License (MIT).
-
+using RadiationDetectorDSP: SamplesOrWaveform
 
 function triangular_dither(x::Number, width::Number = one(typeof(x)) * unit(x))
     T = float(typeof(ustrip(x)))
@@ -83,3 +83,46 @@ function compton_angle(E_in::Number, E_out::Number)::Float64
 end
 
 compton_E_out(E_in::Number, θ::Real) = E_in / (1 + E_in/electron_mass * (1 - cos(θ)))
+
+@fastmath function linear_regression(x::Vector{<:Real}, y::Vector{<:Real})::Tuple # Substitutes linear fit --> much faster
+    @assert length(x) == length(y) "x and y must have the same length."
+    T=Float64
+    x_mean::T = mean(x)
+    y_mean::T = mean(y)
+    num::T = 0.0
+    nom::T = 0.0
+    for i in eachindex(x)
+        x_res = (x[i] - x_mean)
+        num += x_res * (y[i] - y_mean)
+        nom += x_res * x_res
+    end
+    slope::T = num / nom
+    offset::T = y_mean - slope * x_mean
+    return offset, slope
+end
+
+@fastmath function linear_regression(x::AbstractVector{T}, y::AbstractVector{T})::Tuple{T, T} where {T <: AbstractFloat} # Substitutes linear fit --> much faster
+    @assert length(x) == length(y) "x and y must have the same length."
+    x_mean::T = mean(x)
+    y_mean::T = mean(y)
+    num::T = 0.0
+    nom::T = 0.0
+    @inbounds for i in eachindex(x)
+        x_res = (x[i] - x_mean)
+        num += x_res * (y[i] - y_mean)
+        nom += x_res * x_res
+    end
+    slope::T = num / nom
+    offset::T = y_mean - slope * x_mean
+    return offset, slope
+end
+
+function baseline_correction1(dir::AbstractString)
+    files = readdir(dir)
+    for i=eachindex(files)
+        lhd = LHDataStore(joinpath(dir, files[i]))
+        samples = lhd["ICPC/samples"][:]
+        stats = signalstats.(samples, 1, 1800)
+        samples = shift_waveform.(samples, -stats.mean)
+    end
+end
