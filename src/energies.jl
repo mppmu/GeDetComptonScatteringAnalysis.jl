@@ -55,3 +55,37 @@ function get_econv(det::detTable; idx_c::Int = 1, bsize::Int = 1000,
     verbose && @info "energy conversion factor" cf
     return cf
 end
+
+"""
+    compute_measured_pulse_amplitudes(det::detTable, 
+    baseline_length::RealQuantity, tail_start::RealQuantity, 
+    tail_stop::RealQuantity, tau_window::AbstractRange{U}, 
+    trap_params::NTuple{2, T}) where {T<:RealQuantity, U<:RealQuantity}
+
+
+"""
+function compute_measured_pulse_amplitudes(det, 
+baseline_length::RealQuantity, tail_start::RealQuantity, 
+tail_stop::RealQuantity, tau_window::AbstractRange{U}, 
+trap_params::NTuple{2, T}) where {T<:RealQuantity, U<:RealQuantity}
+    # samples = convert.(Vector{Float64}, det.samples)
+    samples = det.samples
+    taus_and_means = StructArray(
+        get_tau.(samples, baseline_length, tail_start, tail_stop))
+    T1 = eltype(taus_and_means.tau)
+    # determine tau from peak/gaussian/cauchy fit
+    h = fit(Histogram, ustrip(taus_and_means.tau), tau_window)
+    # simple peak fit
+    _, tau_peaks = RadiationSpectra.peakfinder(h)
+    tau = T1(tau_peaks[end])
+    # Cauchy fit 
+    # param = curve_fit(cauchy_model, tau_window[2:end], h.weights, p0)
+    # tau = param[2]
+
+    # define relevant filters
+    deconvflt = InvCRFilter(tau)
+    trapflt = TrapezoidalChargeFilter(trap_params...)
+    samples = trapflt.(deconvflt.(shift_waveform.(
+        samples, -taus_and_means.baseline_mean)))
+    findmax.(samples)
+end
