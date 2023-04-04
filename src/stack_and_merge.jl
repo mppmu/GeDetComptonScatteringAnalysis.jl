@@ -28,11 +28,12 @@ function stack_and_merge_at_z(
         det_name::AbstractString; idx_c::Int = 1, 
         #corr_daq_energy::Bool = false, rm_pileup::Bool = false,
         bsize::Int = 1000, max::Int = 1_500_000, hv_in_filename::Bool = false, 
-        n_max_files::Int = -1, verbose::Bool = true)::Nothing 
+        n_max_files::Int = -1, verbose::Bool = true, overwrite::Bool = false
+        )::Nothing 
     files = fetch_relevant_filtered_files(
         sourcedir, phi, z, r, hv_in_filename, n_max_files)
     det::detTable, czt::cztTable = _detTable(), _cztTable()
-    successful = 0
+    successful_files = String[]
     for i=eachindex(files)
         try
             _det::detTable, _czt::cztTable = 
@@ -44,15 +45,49 @@ function stack_and_merge_at_z(
             end
             append!(det, _det)
             append!(czt, _czt)
-            successful += 1
+            append!(successful_files, [files[i]])
         catch e
             nothing
         end
     end
     econv::typeof(Cs_energy) = get_econv(det; idx_c, bsize, max, verbose)
-    verbose && println("$successful / $(length(files)) successful")
-    fileout = build_preprocessed_file_name(files, destdir, successful)
-    write_preprocessed_file(fileout, det_name, (det, czt, idx_c, econv))
-    chmod(fileout, 0o754)
+    verbose && println(
+        "$(length(successful_files)) / $(length(files)) successful")
+    fileout = build_preprocessed_file_name(successful_files, destdir)
+    files = readdir(destdir)
+    idx = findfirst(isequal(fileout), files)
+
+    # check if filename already exists
+    if isnothing(idx)   # file does not exist
+        part1, part2 = split(fileout, "measuretime_")
+        _, part2 = split(part2, "sec")
+        reg = Regex("(?<=$(part1*"measuretime_"))\
+            \\d+(?:\\.\\d+){0,1}s(?=$("ec"*part2))")
+        idx = findfirst(f -> !isnothing(match(reg, f)), files)
+
+        # check if only measuretime changed
+        if isnothing(idx)
+            # no similar file exists, so just write out the file
+            write_preprocessed_file(
+                fileout, det_name, (det, czt, idx_c, econv))
+            chmod(fileout, 0o754)
+        else
+            # there exists a similar file with different measuretime
+            @warn "found file with similar parameters but different \
+                measuretime. Old data in $(files[idx]) will be replaced"
+            write_preprocessed_file(
+                fileout, det_name, (det, czt, idx_c, econv), "w")
+        end
+    else    # file does exist
+        if overwrite
+            write_preprocessed_file(
+                fileout, det_name, (det, czt, idx_c, econv), "w")
+        else
+            # append the data?
+            # what about idx_c and econv
+            write_preprocessed_file(
+                fileout, det_name, (det, czt, idx_c, econv), "w")
+        end
+    end
     nothing
 end

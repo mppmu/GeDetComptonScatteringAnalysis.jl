@@ -1,5 +1,5 @@
 # This file is a part of GeDetComptonScatteringAnalysis.jl, licensed under the MIT License (MIT).
-
+using RadiationDetectorDSP: SamplesOrWaveform, RealQuantity
 
 function triangular_dither(x::Number, width::Number = one(typeof(x)) * unit(x))
     T = float(typeof(ustrip(x)))
@@ -83,3 +83,113 @@ function compton_angle(E_in::Number, E_out::Number)::Float64
 end
 
 compton_E_out(E_in::Number, θ::Real) = E_in / (1 + E_in/electron_mass * (1 - cos(θ)))
+
+@fastmath function linear_regression(x::Vector{<:Real}, y::Vector{<:Real}
+)::Tuple
+    @assert length(x) == length(y) "x and y must have the same length."
+    T=Float64
+    x_mean::T = mean(x)
+    y_mean::T = mean(y)
+    num::T = 0.0
+    nom::T = 0.0
+    for i in eachindex(x)
+        x_res = (x[i] - x_mean)
+        num += x_res * (y[i] - y_mean)
+        nom += x_res * x_res
+    end
+    slope::T = num / nom
+    offset::T = y_mean - slope * x_mean
+    return offset, slope
+end
+
+@fastmath function linear_regression(x::AbstractVector{T}, y::AbstractVector{T}
+)::Tuple{T, T} where {T <: AbstractFloat}
+    @assert length(x) == length(y) "x and y must have the same length."
+    x_mean::T = mean(x)
+    y_mean::T = mean(y)
+    num::T = 0.0
+    nom::T = 0.0
+    @inbounds for i in eachindex(x)
+        x_res = (x[i] - x_mean)
+        num += x_res * (y[i] - y_mean)
+        nom += x_res * x_res
+    end
+    slope::T = num / nom
+    offset::T = y_mean - slope * x_mean
+    return offset, slope
+end
+
+"""
+    linreg(y::AbstractVector{T}, y₀::Float64
+        )::Tuple{T, T} where {T<:AbstractFloat}
+
+perform linear regression on `log.(max.(y .- y₀, 1))` assuming that 
+`x=0:L-1` with `L=length(y)` and `y` being the data.
+"""
+@fastmath function loglinreg(y::AbstractVector{T}, y₀::Float64) where {T<:Real}
+    L = length(y)
+    x̄::Float64 = (L-1) / 2.
+    ȳ::Float64 = 0.
+    @inbounds @simd for i=Base.OneTo(L)
+        ȳ += log(max((y[i] - y₀), 1))
+    end
+    ȳ /= L
+    num::Float64 = 0.
+    nom::Float64 = 0.
+    @inbounds for i=Base.OneTo(L)
+        x_res = i - 1 - x̄
+        num += x_res * (log(max((y[i] - y₀), 1)) - ȳ)
+        nom += x_res * x_res
+    end
+    slope::Float64 = num / nom
+    offset::Float64 = ȳ - slope * x̄
+    return offset, slope
+end
+
+"""
+    get_tau(input::AbstractSamples{T}, baseline_length::Int, step::T, 
+    tail_start::Int, tail_stop::Int)::Float64 where {T<:Real}
+
+Determine the decay time tau from the tail and the baseline_mean from 
+the beginning of the pulse `input`, where `input` is from type 
+`AbstractSamples{T}`. `baseline_length` is the length of the baseline in 
+number of samples. `tail_start` and `tail_stop` define the beginning and 
+end of the tail, both in number of samples.
+"""
+function get_tau(y::AbstractVector{T}, baseline_length::Int,
+tail_start::Int, tail_stop::Int) where {T<:Real}  
+    # @assert tail_stop >= tail_start
+    y₀::Float64 = ustrip(mean(@view y[1:baseline_length]))
+    fitresult = loglinreg((@view y[tail_start:tail_stop]), y₀)
+    (tau = -1 / fitresult[2], baseline_mean=y₀)
+end
+
+"""
+    get_tau(input::RDWaveform{T}, baseline_length::Int, tail_start::Int, 
+    tail_stop::Int)::T where {T<:RealQuantity})
+
+Determine the decay time tau from the tail and the baseline_mean from 
+the beginning of the pulse 'input', where `input` is an `RDWaveform`.
+"""
+function get_tau(x::RDWaveform{T}, baseline_length::RealQuantity, 
+tail_start::RealQuantity, tail_stop::RealQuantity) where {T<:RealQuantity} 
+    _baseline_length = _get_index(convert(T, baseline_length), x.time)
+    _tail_start = _get_index(convert(T, tail_start), x.time)
+    _tail_stop = _get_index(convert(T, tail_stop), x.time)
+    _tau, baseline_mean = 
+        get_tau(x.signal, _baseline_length, _tail_start, _tail_stop)
+    (tau = _tau * step(x.time), baseline_mean=T(baseline_mean))
+end
+
+@inline cauchy_model(x, p)  = 
+    p[3]/pi .* p[1]./(p[1].^2 .+ (x .- p[2]).^2)
+
+@inline function _get_index(stop::U, x_axis::AbstractVector{T}
+)::Int where {T<:RealQuantity, U<:RealQuantity}
+    first_x, step_x =  first(x_axis), step(x_axis)
+    round(Int, ustrip(NoUnits, (stop - first_x) / step_x)) + firstindex(x_axis)
+end
+
+@inline findmax(x::AbstractSamples{T}) where {T<:Real} = maximum(x)
+@inline findmax(x::RDWaveform{T, U}) where {T<:Real, U<:RealQuantity} = 
+    findmax(x.signal)
