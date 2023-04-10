@@ -71,6 +71,19 @@ const detTable = TypedTables.Table{
     }
 }
 
+const detTable2 = AbstractVector{
+    NamedTuple{
+        (:evt_no, :chid, :evt_t, :DAQ_energy, :samples), 
+        Tuple{
+            Int32, 
+            Int32, 
+            Quantity{Int64, 𝐓, ns}, 
+            Int32, 
+            Vector{Int16}
+        }
+    }
+}
+
 _detTable() = 
     TypedTables.Table(
         evt_no = Vector{Int32}(), # evt_no
