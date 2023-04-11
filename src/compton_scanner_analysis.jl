@@ -1,15 +1,16 @@
 # This file is a part of GeDetComptonScatteringAnalysis.jl, licensed under the MIT License (MIT).
 
 function reconstruct_z(file::AbstractString; name::AbstractString = "segBEGe", 
-    center::QuantityMM{Float64} = cntr, ew = 8.0u"keV", Δz::QuantityMM = 2.0u"mm")
-    det::detTable, czt::cztTable, idx_c::Int, ec::typeof(Cs_energy) = read_preprocessed_file(file, name)
+center::QuantityMM{Float64} = cntr, ew = 8.0u"keV", Δz::QuantityMM = 2.0u"mm")
+    det::detTable, czt::cztTable, idx_c::Int, ec::typeof(Cs_energy) = 
+        read_preprocessed_file(file, name)
+    core = @view det[findall(det.chid .== idx_c)]
     hv::Float64 = ustrip(getV(file))
-    #ec = econv[hv] * u"keV"
-    det_e = ec*det.DAQ_energy
+    det_e = ec*core.DAQ_energy
     czt_e = uconvert.(u"keV", (sum.(czt.hit_edep)))
     idx = intersect(findall(x -> abs(x - Cs_energy) ≤ ew, det_e+czt_e), 
                     findall(x -> 250.0u"keV" ≤ x ≤ 440.0u"keV", det_e))
-    det_hits = view(det, idx)
+    det_hits = view(core, idx)
     czt_hits = view(czt, idx)
     R::QuantityMM{Float64} = center - getR(file)
 
@@ -37,73 +38,94 @@ loop through all files in `sourcedir` and return for each file the radius,
 measuretime and reconstructed z's
 """
 function get_all_z(sourcedir::AbstractString; name::AbstractString="segBEGe", 
-    center::QuantityMM{Float64} = cntr, ew = 8.0u"keV")
+center::QuantityMM{Float64} = cntr, ew = 8.0u"keV")
+
     ffiles = filter(x -> endswith(x, "preprocessed.lh5"), readdir(sourcedir))
     R = zeros(QuantityMM{Float64}, length(ffiles))
     mtime = zeros(typeof(1.0u"s"), length(ffiles))
-    z = Vector{QuantityMM{Float64}}[]
+    z = Vector{Vector{QuantityMM{Float64}}}(undef, length(ffiles))
     for i=eachindex(ffiles)
-        R[i] = getR(ffiles[i])
-        mtime[i] = getM(ffiles[i])
-        rec_zs = reconstruct_z(joinpath(sourcedir, ffiles[i]); name, center, ew = ew)
-        push!(z, rec_zs[:, 1])
+        file = joinpath(sourcedir, ffiles[i])
+        R[i] = getR(file)
+        mtime[i] = getM(file)
+        rec_zs = reconstruct_z(file; name, center, ew = ew)
+        z[i] = rec_zs[:, 1]
     end
     ustrip.(mtime), ustrip.(R), broadcast(z -> ustrip.(z), z) # remove units for now
 end
 
-function get_z_and_waveforms(
-        file::AbstractString, hv::Float64; center::QuantityMM{Float64} = cntr, #idx_c::Int = 1, 
-        name::AbstractString = "segBEGe", ew = 8.0u"keV", Δz::QuantityMM = 2.0u"mm"
-    )
+"""
+    get_z_and_waveforms(file::AbstractString, hv::Float64, chid::Int;
+        center::QuantityMM{Float64} = cntr, name::AbstractString = "segBEGe",
+        ew = 8.u"keV", Δz::QuantityMM = 2.0u"mm")
+    
+For a specified preprocessed `file`, read in the core and the segment
+table (given by `chid`), compute the reconstructed z values of one and 
+two hit events and return those together with the corresponding waveforms
+of the specified segment.
+"""
+function get_z_and_waveforms(file::AbstractString, hv::Float64, chid::Int; 
+center::QuantityMM{Float64} = cntr, name::AbstractString = "segBEGe", 
+ew = 8.0u"keV", Δz::QuantityMM = 2.0u"mm")
 
-    det::detTable, czt::cztTable, idx_c::Int, ec::typeof(Cs_energy) = read_preprocessed_file(file, name)
-    det = det[findall(x -> x == idx_c, det.chid)]
-    @assert length(det) == length(czt) "$name and czt do not have the same number of events"
-    #ec = econv[hv] * u"keV"
-    det_e = ec*det.DAQ_energy
+    det::detTable, czt::cztTable, idx_c::Int, ec::typeof(Cs_energy) = 
+        read_preprocessed_file(file, name)
+    core = view(det, findall(det.chid .== idx_c))
+    seg = view(det, findall(det.chid .== chid))
+    @assert length(core) == length(czt) "core and czt do not have the same number of events"
+    @assert length(seg) == length(czt) "segment $chid and czt do not have the same number of events"
+    core_e = ec * core.DAQ_energy
     czt_e = uconvert.(u"keV", (sum.(czt.hit_edep)))
-    idx = intersect(findall(x -> abs(x - Cs_energy) ≤ ew, det_e+czt_e), 
-                    findall(x -> 250.0u"keV" ≤ x ≤ 440.0u"keV", det_e))
-    det_hits = view(det, idx)
+    idx = intersect(findall(x -> abs(x - Cs_energy) ≤ ew, core_e+czt_e), 
+                    findall(x -> 250.0u"keV" ≤ x ≤ 440.0u"keV", core_e))
+    core_hits = view(core, idx)
+    seg_hits = view(seg, idx)
     czt_hits = view(czt, idx)
     R::QuantityMM{Float64} = center - getR(file)
 
-    # @info "Reconstructing Z from two hit events at R = $R"
     idx_2h = findall(is_valid_2hit, czt_hits)
-    idx_1h = findall(x -> x == 1, czt_hits.evt_nhits)
-    det_1hit = view(det_hits, idx_1h)
-    czt_1hit = view(czt_hits, idx_1h)
-    det_2hit = view(det_hits, idx_2h)
+    core_2hit = view(core_hits, idx_2h)
+    seg_2hit = view(seg_hits, idx_2h)
     czt_2hit = view(czt_hits, idx_2h)
-
-    z_rec_1hit = get_z_from_energies.(det_1hit, czt_1hit, R, hv)
-    z_rec_2hit = get_z_from_2_hit_events.(det_2hit, czt_2hit, R; Δz, hv)
+    z_rec_2hit = get_z_from_2_hit_events.(core_2hit, czt_2hit, R; Δz, hv)
     idx_val = findall(x -> x[1] != 0, z_rec_2hit)
     z_rec_2hit_val = [x[2] for x in z_rec_2hit[idx_val]]
-    return z_rec_2hit_val, z_rec_1hit, det_2hit.samples[idx_val], det_hits.samples[idx_1h] 
+
+    idx_1h = findall(czt_hits.evt_nhits .== 1)
+    core_1hit = view(core_hits, idx_1h)
+    seg_1hit = view(seg_hits, idx_1h)
+    czt_1hit = view(czt_hits, idx_1h)
+    z_rec_1hit = get_z_from_energies.(core_1hit, czt_1hit, R, hv)
+
+    return z_rec_2hit_val, z_rec_1hit, view(seg_2hit, idx_val).samples, 
+        seg_1hit.samples
 end
 
 
 # TODO: find better solution for handling kwargs
 """
-    reconstruct_at_radius(file::AbstractString), hv::Float64; Δz::QuantityMM=2.0u"mm",
-    window::Tuple{Int, Int}=(500, 500), τ::Float64=51.8,
-    χ2_max::Float64=3., l1::Int=300, ew = 8.0u"keV")
+    reconstruct_at_radius(file::AbstractString), hv::Float64; 
+    Δz::QuantityMM=2.0u"mm", window::Tuple{Int, Int}=(500, 500), 
+    τ::Float64=51.8, χ2_max::Float64=3., l1::Int=300, ew = 8.0u"keV")
 
-Given a `file` and a specified voltage `hv`, build the superpulses from 
-two hit and one hit validated hits.  
+Given a `file`, a specified voltage `hv` and the corresponding channel
+id `chid`, build the superpulses from two hit and one hit validated hits.  
 """
-function reconstruct_at_radius(file::AbstractString, hv::Float64; 
-    name::AbstractString = "segBEGe", Δz::TT = 2.0u"mm", zbin::TT = 2.0u"mm",
-    window::Tuple{Int, Int}=(500, 500), τ::Float64=51.8, χ2_max::Float64=3.,
-    l1::Int=300, ew = 8.0u"keV", baseline_samples::Int = 500, verbose::Bool = true) where {TT <: QuantityMM}
-    
-    z2h, z1h, wf2h, wf1h = get_z_and_waveforms(file, hv, name = name, ew = ew, Δz = Δz)
+function reconstruct_at_radius(file::AbstractString, hv::Float64, chid::Int; 
+name::AbstractString = "segBEGe", Δz::TT = 2.0u"mm", zbin::TT = 2.0u"mm",
+window::Tuple{Int, Int}=(500, 500), τ::Float64=51.8, χ2_max::Float64 = 3.,
+l1::Int = 300, ew = 8.0u"keV", baseline_samples::Int = 500, 
+verbose::Bool = true) where {TT <: QuantityMM}    
+
+    z2h, z1h, wf2h, wf1h = get_z_and_waveforms(file, hv, chid, name = name, ew = ew, Δz = Δz)
     wlength = sum(window)+1
     z_Cs = collect(zero(TT):zbin:TT(40u"mm"))
-    superpulses_Cs = [zeros(Float64, wlength) for _ in eachindex(z_Cs)]
+    superpulses_Cs = nestedview(Matrix{Float64}(undef, wlength, length(z_Cs)))
     mask = zeros(Bool, length(z_Cs))
-    if verbose prog = ProgressUnknown("Reconstructing superpulses at z =") end
+    if verbose 
+        prog = ProgressUnknown("Reconstructing superpulses for channel $chid \
+        at z =") 
+    end
     for i=eachindex(z_Cs)
         verbose && ProgressMeter.update!(prog, i)
 
@@ -137,7 +159,7 @@ function reconstruct_at_radius(file::AbstractString, hv::Float64;
         wfs1_aligned = time_align.(wfs1_at_z; p=0.5, window=window, l=l1)
         filter!(wfm -> length(wfm) == wlength, wfs1_aligned)
         if length(wfs1_aligned) == 0
-            superpulses_Cs[i] = sp
+            superpulses_Cs[i] .= sp
             mask[i] = true
             continue
         end
@@ -146,7 +168,7 @@ function reconstruct_at_radius(file::AbstractString, hv::Float64;
         χ1h = [chi_sq_wfs(normalizewf(wfm; l=l1), sp) for wfm=wfs1_aligned]
         chi_1h = findall(χ -> χ < χ2_max, χ1h)
         sp = normalizewf(vcat(wfs_aligned[chi_2h], wfs1_aligned[chi_1h]); l=l1)
-        superpulses_Cs[i] = sp
+        superpulses_Cs[i] .= sp
         mask[i] = true
     end
     superpulses_Cs, mask, ustrip.(z_Cs)
