@@ -14,7 +14,8 @@ const Cs_energy = 661.66u"keV"
 
 # ----- INFO ------
 # Energies should be determined from pulses...
-function correct_DAQ_energy!(det::detTable2, cf::T)::Nothing where {T <: AbstractFloat}
+function correct_DAQ_energy!(det::AbstractDetTable, cf::T
+)::Nothing where {T <: AbstractFloat}
     for i in eachindex(det)
         new_e::T = DAQ_energy_corr(det.samples[i], cf * det.DAQ_energy[i])
         det.DAQ_energy[i] = new_e / cf
@@ -46,8 +47,8 @@ histogram ,`max` the maximal value to consider for `seg.DAQ_energy`
 and `verbose` a boolian determining wether we inform the user about the 
 resulting conversion factor.
 """
-function get_econv(seg::detTable2; bsize::Int = 1000, max::Int = 1_500_000, 
-verbose::Bool = true)::typeof(Cs_energy)
+function get_econv(seg::AbstractDetTable; bsize::Int = 1000, 
+max::Int = 1_500_000, verbose::Bool = true)::typeof(Cs_energy)
     h::Histogram{Float64} = 
         fit(Histogram{Float64}, seg.DAQ_energy, (1:bsize:max))
     _, peakpos = RadiationSpectra.peakfinder(h)

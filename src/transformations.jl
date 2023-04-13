@@ -31,12 +31,12 @@ motor_z::TT)::Nothing where {T, TT <: QuantityMM{Float64}}
     nothing
 end
 
-function merge_cameras_and_transform_coordinates(::detTable2, czt::cztTable, ::Missing, motor_z::QuantityMM{Float64})::cztTable
+function merge_cameras_and_transform_coordinates(::AbstractDetTable, czt::cztTable, ::Missing, motor_z::QuantityMM{Float64})::cztTable
     transform_czt1_coords!(czt.hit_x.data, czt.hit_y.data, czt.hit_z.data, motor_z)
     czt
 end
 
-function merge_cameras_and_transform_coordinates(det::detTable2, czt::cztTable, czt2::cztTable, motor_z::QuantityMM{Float64})::cztTable
+function merge_cameras_and_transform_coordinates(det::AbstractDetTable, czt::cztTable, czt2::cztTable, motor_z::QuantityMM{Float64})::cztTable
     # TODO: maybe consider doing transformation directly in main loop here
     # instead of seperately for each camera
     transform_czt1_coords!(czt.hit_x.data, czt.hit_y.data, czt.hit_z.data, motor_z)
