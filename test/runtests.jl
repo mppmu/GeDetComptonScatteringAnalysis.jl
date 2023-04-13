@@ -21,7 +21,7 @@ for file in readdir(destdir) rm(joinpath(destdir, file)) end
         resultfile = joinpath(destdir, "R_81.8mm_Z_62.8mm_Phi_88.5deg_T_71.75K_measuretime_1200sec_HV_300V-20230126T145729Z-preprocessed.lh5")
         @test isfile(resultfile)
         mtime, R, Z = get_all_z(destdir)
-        @inferred reconstruct_at_radius(resultfile, hv, 1, ew = 20u"keV")
+        @inferred reconstruct_at_radius(resultfile, hv, 1, ΔE = 20u"keV")
         rm(resultfile)
     end
 
