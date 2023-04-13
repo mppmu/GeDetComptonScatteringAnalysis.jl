@@ -71,7 +71,7 @@ const detTable = TypedTables.Table{
     }
 }
 
-const detTable2 = AbstractVector{
+const AbstractDetTable = AbstractVector{
     NamedTuple{
         (:evt_no, :chid, :evt_t, :DAQ_energy, :samples), 
         Tuple{
