@@ -1,5 +1,8 @@
 # This file is a part of GeDetComptonScatteringAnalysis.jl, licensed under the MIT License (MIT).
 
+using Pkg
+Pkg.add(url = "https://github.com/JuliaPhysics/RadiationDetectorDSP.jl", rev = "main")
+
 using Test
 using GeDetComptonScatteringAnalysis
 using Unitful
