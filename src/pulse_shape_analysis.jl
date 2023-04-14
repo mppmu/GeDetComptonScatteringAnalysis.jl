@@ -2,15 +2,28 @@
 
 # TODO: replace pulse-shape processing functions by functions from RadiationDetectorDSP.jl
 
-function normalizewf(x; l::Int=300)
-    max = mean(x[end-l:end])
-    x/max
+function normalizewf!(x::AbstractSamples{T}; tail_length::Int=300
+) where {T <: AbstractFloat}
+    tail = mean(@view x[end-tail_length:end])
+    x ./= tail
 end
 
-function normalizewf(x::AbstractVector{<:AbstractVector{T}}; l::Int=300
-) where {T}
-    max = sum([mean(x[i][end-l:end]) for i=eachindex(x)])
-    sum([x[i]/max for i=eachindex(x)])
+function normalizewf!(x::RDWaveform{U, T}; kwargs...) where {U, T}
+    normalizewf!(x.signal; kwargs...)
+    x
+end
+
+function normalizewf(X::AbstractVector{<:AbstractVector{T}}; 
+tail_length::Int=300) where {T <: AbstractFloat}
+    y = zero(X[1])
+    max = 0.
+    @inbounds for i=eachindex(X)
+        max += mean(@view X[i][end-tail_length:end])
+    end
+    @inbounds for i=eachindex(X)
+        y .+= X[i] ./ max
+    end
+    y
 end
 
 # TODO: check if ! functions would give better performance 
@@ -20,8 +33,8 @@ end
 #     x .-= x̅
 # end
 
-baseline_corr(x::AbstractVector{T}; m::Int=500) where {T} = begin
-    x̅ = mean(x[1:m])
+baseline_corr!(x::AbstractVector{T}; m::Int=500) where {T} = begin
+    x̅ = mean(@view x[1:m])
     x .- x̅
 end
 
@@ -36,18 +49,22 @@ the point where the `p`-th fraction of the maximum value is reached is
 at the center of the window. The maximum value is determined by the last 
 `l` values.
 """
-@fastmath function time_align(wf::AbstractVector{T}; p::T=0.5, 
+function time_align(wf::AbstractVector{T}; p::Float64=0.5, 
 window::Tuple{Int, Int}=(500, 500), l::Int=300) where {T<:AbstractFloat}
-    @inbounds begin
-        wfmax = mean(wf[end-l:end])
-        idx = Int(find_crossing(smooth20(wf), p*wfmax, interpolate = false))
-        if idx ≤ window[1] || length(wf) - window[2] < idx
-            return wf
-        end
-        wf[idx-window[1]:idx+window[2]]
-    end
+    @assert l < length(wf) "tail length l cant be longer than the waveform"
+    m = mean(@view wf[end-l:end]) * p
+    time_align(wf, m; window=window)
 end
 
+@fastmath @inbounds function time_align(wf::AbstractSamples{T}, m::T;
+window::Tuple{Int, Int}=(500, 500)) where {T<:AbstractFloat}
+    @assert length(wf) > sum(window) + 1 "waveform must be longer than windows"
+    inter = Intersect(100.)
+    idx = floor(Int, inter(wf, m).x)
+    (idx ≤ window[1] || length(wf) - window[2] < idx) && return @view wf[:]
+    return @view wf[idx-window[1]:idx+window[2]]
+end
+    
 @fastmath function decay_correction(wf::AbstractVector{T}, tau::T
 ) where {T<:AbstractFloat}
     rp = Vector{T}(undef, length(wf))
@@ -59,7 +76,7 @@ end
 end
 
 # TODO: replace by appropriate filters from DSP/RadiationDetectorDSP
-function smooth20(wv::Vector{T}) where {T <: AbstractFloat}
+function smooth20(wv::AbstractVector{T}) where {T <: AbstractFloat}
     w::Vector{T} = T[ 0.0,
                      0.010329700377119983,
                      0.022145353094771694,

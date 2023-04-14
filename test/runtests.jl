@@ -1,5 +1,8 @@
 # This file is a part of GeDetComptonScatteringAnalysis.jl, licensed under the MIT License (MIT).
 
+using Pkg
+Pkg.add(url = "https://github.com/JuliaPhysics/RadiationDetectorDSP.jl", rev = "main")
+
 using Test
 using GeDetComptonScatteringAnalysis
 using Unitful
@@ -21,7 +24,7 @@ for file in readdir(destdir) rm(joinpath(destdir, file)) end
         resultfile = joinpath(destdir, "R_81.8mm_Z_62.8mm_Phi_88.5deg_T_71.75K_measuretime_1200sec_HV_300V-20230126T145729Z-preprocessed.lh5")
         @test isfile(resultfile)
         mtime, R, Z = get_all_z(destdir)
-        @inferred reconstruct_at_radius(resultfile, hv, ew = 20u"keV")
+        @inferred reconstruct_at_radius(resultfile, hv, 1, ΔE = 20u"keV")
         rm(resultfile)
     end
 
@@ -52,7 +55,7 @@ end
         resultfile = joinpath(destdir, "R_71.0mm_Z_25.0mm_Phi_69.9deg_T_95.0K_measuretime_600sec_HV_1200.0V-20220919T141651Z-preprocessed.lh5")
         @test isfile(resultfile)
         mtime, R, Z = get_all_z(destdir, name = name, center = 82.12404619872268u"mm")
-        @inferred reconstruct_at_radius(resultfile, hv, name = name)
+        @inferred reconstruct_at_radius(resultfile, hv, 16, name = name)
         rm(resultfile)
     end
 end

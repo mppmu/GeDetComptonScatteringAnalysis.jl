@@ -43,8 +43,8 @@ function fetch_relevant_filtered_files(
 end
 
 function is_filtered_file(f::AbstractString)::Bool
-    return (endswith(f, "-filtered.h5") || throw(ArgumentError, "Expected filtered file as input.")) && 
-           (isfile(f) || throw(ArgumentError, "File does not exist (missing path to file?)"))
+    return (endswith(f, "-filtered.h5") || throw(ArgumentError("Expected filtered file as input."))) && 
+        (isfile(f) || throw(ArgumentError("File does not exist (missing path to file?)")))
 end
 
 function read_filtered_file(f::AbstractString, name::AbstractString)
@@ -56,7 +56,8 @@ end
 
 function build_preprocessed_file_name(files::Vector{String}, 
         destdir::AbstractString)::String
-    fmtime = Int32(ustrip(sum(map(getM, files))))
+    length(files) == 0 && throw(ArgumentError("No files were submitted"))
+    fmtime = compute_measuretime(files)
     destdir = joinpath(destdir, "")
     fpos, ftime = split(basename(files[end]), "measuretime_")
     _, fdate = split(ftime, "sec")
@@ -83,8 +84,8 @@ end
 # preprocessed -> results  #
 ############################
 function is_preprocessed_file(f::AbstractString)::Bool 
-    return (endswith(f, "-preprocessed.lh5") || throw(ArgumentError, "Expected prepocessed file as input.")) &&
-           (isfile(f) || throw(ArgumentError, "File does not exist (missing path to file?)"))
+    return (endswith(f, "-preprocessed.lh5") || throw(ArgumentError("Expected prepocessed file as input."))) && 
+        (isfile(f) || throw(ArgumentError("File does not exist (missing path to file?)")))
 end
 
 function read_preprocessed_file(f::AbstractString, name::AbstractString)::Tuple{detTable, cztTable, Int, typeof(Cs_energy)}

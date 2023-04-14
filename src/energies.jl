@@ -14,7 +14,8 @@ const Cs_energy = 661.66u"keV"
 
 # ----- INFO ------
 # Energies should be determined from pulses...
-function correct_DAQ_energy!(det::detTable, cf::T)::Nothing where {T <: AbstractFloat}
+function correct_DAQ_energy!(det::AbstractDetTable, cf::T
+)::Nothing where {T <: AbstractFloat}
     for i in eachindex(det)
         new_e::T = DAQ_energy_corr(det.samples[i], cf * det.DAQ_energy[i])
         det.DAQ_energy[i] = new_e / cf
@@ -37,19 +38,19 @@ par(x::T, p::Vector{T}) where {T <: AbstractFloat} = p[1] + p[2] * x + p[3] * x^
 
 
 """
-    get_econv(sourcedir [; idx_c=1 nseg=5, max=1_000_000, name="segBEGe"])
+    get_econv(det::detTable [; bsize::Int = 1000, max::Int = 1_500_000, 
+        verbose::Bool = true])::typeof(Cs_energy)
 
-compute energy conversion factor. From all files using only the 
-DAQ_energy from the core. `idx_c` denotes the index of the core segment, 
-`nseg` the number of segments ,`max` the maximal raw value to 
-consider in the histogram and `name` the name of the table
+Compute the energy conversion factor from the submitted `seg` table 
+using `seg.DAQ_energy`. `bsize` determines the binning size of the
+histogram ,`max` the maximal value to consider for `seg.DAQ_energy` 
+and `verbose` a boolian determining wether we inform the user about the 
+resulting conversion factor.
 """
-function get_econv(det::detTable; idx_c::Int = 1, bsize::Int = 1000, 
-        max::Int = 1_500_000, verbose::Bool = true)::typeof(Cs_energy)
-    h::Histogram{Float64} = fit(
-        Histogram{Float64}, 
-        det.DAQ_energy[findall(det.chid .== idx_c)], 
-        (1:bsize:max))
+function get_econv(seg::AbstractDetTable; bsize::Int = 1000, 
+max::Int = 1_500_000, verbose::Bool = true)::typeof(Cs_energy)
+    h::Histogram{Float64} = 
+        fit(Histogram{Float64}, seg.DAQ_energy, (1:bsize:max))
     _, peakpos = RadiationSpectra.peakfinder(h)
     cf = Cs_energy / maximum(peakpos)
     verbose && @info "energy conversion factor" cf
